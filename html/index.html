@@ -1,0 +1,2467 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Marketplace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* ==========================================================
+       FLOATING WINDOW NUI (drag + resize + themes)
+       - Transparent NUI background
+       - Only the window is interactive (click-through elsewhere)
+       - Drag by topbar (excluding inputs/buttons)
+       - Resize via bottom-right handle
+       - Settings: dark/light + glass opacity + reset window
+       ========================================================== */
+
+    :root{
+      /* THEME (LIGHT default) */
+      --bg:#f0f2f5;
+      --panel:#ffffff;
+      --panel2:#f7f8fa;
+      --text:#0f172a;
+      --muted:#64748b;
+      --line:#e5e7eb;
+      --blue:#1877f2;
+      --shadow:0 12px 30px rgba(15,23,42,.18);
+      --radius:16px;
+      --radius2:12px;
+      --trans:180ms cubic-bezier(.2,.9,.25,1);
+
+      /* WINDOW "GLASS" */
+      --winBg: 255, 255, 255;
+      --winA: .96;
+      --winBorder: rgba(15,23,42,.12);
+      --winBlur: 12px;
+
+      --minW: 860px;
+      --minH: 560px;
+    }
+
+    :root[data-theme="dark"]{
+      --bg:#0b1220;
+      --panel:#0f172a;
+      --panel2:#111c31;
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --line:rgba(255,255,255,.08);
+      --blue:#3b82f6;
+      --shadow:0 18px 50px rgba(0,0,0,.55);
+
+      --winBg: 15, 23, 42;
+      --winA: .92;
+      --winBorder: rgba(255,255,255,.10);
+      --winBlur: 14px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{
+      height:100%;
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:transparent;
+      overflow:hidden; /* prevent scroll on the NUI surface */
+    }
+
+    .hidden{display:none !important}
+
+    /* Make entire NUI click-through EXCEPT the window */
+    body{ pointer-events:none; }
+    #app{ pointer-events:none; }
+
+    .app{
+      position:fixed;
+      inset:0;
+      background:transparent;
+      display:block;
+      z-index:50;
+    }
+
+    .window{
+      pointer-events:auto;
+      position:absolute;
+      left:60px;
+      top:60px;
+      width:min(1240px, 95vw);
+      height:min(760px, 90vh);
+      min-width:var(--minW);
+      min-height:var(--minH);
+      display:flex;
+      flex-direction:column;
+
+      border-radius:18px;
+      border:1px solid var(--winBorder);
+
+      /* ✅ FIX: use correct CSS color syntax with --winBg */
+      background: rgb(var(--winBg) / var(--winA));
+
+      overflow:hidden;
+    }
+
+    .window.dragging{ user-select:none; }
+    .window.dragging .topbar{ cursor:grabbing; }
+
+    /* Custom resize handle */
+    .resizer{
+      position:absolute;
+      right:0;
+      bottom:0;
+      width:18px;
+      height:18px;
+      cursor:nwse-resize;
+      z-index:20;
+      opacity:.65;
+      background:
+        linear-gradient(135deg,
+          transparent 0 45%,
+          rgba(255,255,255,.35) 45% 50%,
+          transparent 50% 65%,
+          rgba(255,255,255,.35) 65% 70%,
+          transparent 70% 85%,
+          rgba(255,255,255,.35) 85% 90%,
+          transparent 90% 100%);
+      mix-blend-mode: overlay;
+    }
+    :root[data-theme="dark"] .resizer{
+      background:
+        linear-gradient(135deg,
+          transparent 0 45%,
+          rgba(0,0,0,.25) 45% 50%,
+          transparent 50% 65%,
+          rgba(0,0,0,.25) 65% 70%,
+          transparent 70% 85%,
+          rgba(0,0,0,.25) 85% 90%,
+          transparent 90% 100%);
+      mix-blend-mode: screen;
+      opacity:.55;
+    }
+
+    /* ===================== IN-WINDOW TOAST NOTIFICATIONS ===================== */
+    .toasts{
+      position:absolute;
+      top:74px;
+      right:16px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      z-index:80;
+      pointer-events:none;
+    }
+    .toast{
+      pointer-events:auto;
+      width:min(420px, calc(100% - 20px));
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(var(--winBg), 0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow:var(--shadow);
+      padding:12px 12px;
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      transform:translateY(-6px);
+      opacity:0;
+      transition:opacity var(--trans), transform var(--trans);
+    }
+    .toast.show{ opacity:1; transform:translateY(0); }
+    .toast .ico{
+      width:34px;height:34px;border-radius:12px;
+      display:grid;place-items:center;
+      border:1px solid var(--line);
+      background:var(--panel2);
+      color:var(--text);
+      flex:0 0 auto;
+    }
+    .toast .body{ flex:1; min-width:0; }
+    .toast .t1{ font-weight:900; color:var(--text); line-height:1.2; }
+    .toast .t2{ margin-top:4px; color:var(--muted); font-size:13px; line-height:1.25; white-space:pre-wrap; }
+    .toast .x{
+      border:0;background:transparent;color:var(--muted);
+      cursor:pointer; padding:6px; margin:-6px -2px 0 0;
+    }
+    .toast .x:hover{ filter:brightness(.95); }
+
+    .toast[data-type="success"] .ico{ color:#16a34a; }
+    .toast[data-type="error"] .ico{ color:#ef4444; }
+    .toast[data-type="warn"] .ico{ color:#f59e0b; }
+    .toast[data-type="info"] .ico{ color:var(--blue); }
+
+    /* ===================== ACTION MENU / CONFIRM MODAL ===================== */
+    .modal-list{ display:flex; flex-direction:column; gap:8px; }
+    .actionbtn{
+      width:100%;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px;
+      padding:12px 12px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:var(--panel2);
+      cursor:pointer;
+      font-weight:800;
+      color:var(--text);
+    }
+    .actionbtn:hover{ filter:brightness(.98); }
+    .actionbtn.danger{ border-color:rgba(239,68,68,.35); background:rgba(239,68,68,.08); }
+    .actionbtn.danger i{ color:#ef4444; }
+    .confirm-text{ color:var(--muted); font-size:13px; line-height:1.35; margin-top:6px; white-space:pre-wrap; }
+
+    /* ===================== ORIGINAL UI STYLES (kept) ===================== */
+
+    .topbar{
+      height:64px;
+      background:var(--panel);
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      padding:0 16px;
+      gap:14px;
+
+      cursor:grab; /* drag handle */
+    }
+    /* allow normal cursor on interactive elements in topbar */
+    .topbar button, .topbar input { cursor:auto; }
+    .topbar .search { cursor:auto; }
+
+    .brand{display:flex;align-items:center;gap:10px;min-width:220px}
+    .fb{
+      width:36px;height:36px;border-radius:999px;
+      background:var(--blue);
+      color:#fff;
+      display:grid;place-items:center;
+      font-weight:800;
+      font-size:22px;
+      line-height:1;
+    }
+    .title{font-weight:800;color:var(--text);font-size:18px}
+
+    .search{
+      flex:1;
+      height:40px;
+      background:var(--panel2);
+      border:1px solid var(--line);
+      border-radius:999px;
+      display:flex;
+      align-items:center;
+      padding:0 14px;
+      gap:10px;
+    }
+    .search i{color:var(--muted)}
+    .search input{
+      width:100%;
+      border:0; outline:0;
+      background:transparent;
+      font-size:14px;
+      color:var(--text);
+    }
+
+    .top-actions{display:flex;align-items:center;gap:8px}
+
+    .iconbtn{
+      height:40px; width:40px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:var(--panel2);
+      display:grid; place-items:center;
+      cursor:pointer;
+      transition:transform var(--trans), background var(--trans);
+      color:var(--text);
+    }
+    .iconbtn:hover{transform:translateY(-1px); filter:brightness(.98)}
+    .iconbtn.ghost{background:transparent;border:0}
+
+    .layout{
+      flex:1;
+      display:flex;
+      min-height:0;
+    }
+
+    .sidebar{
+      width:320px;
+      background:var(--panel);
+      border-right:1px solid var(--line);
+      padding:16px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      overflow:auto;
+    }
+
+    .sidebar-head{display:flex;align-items:center;justify-content:space-between}
+    .sidebar .h1{font-weight:800;font-size:22px;color:var(--text)}
+
+    .nav{display:flex;flex-direction:column;gap:6px}
+    .navitem{
+      display:flex;align-items:center;gap:12px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid transparent;
+      background:transparent;
+      cursor:pointer;
+      color:var(--text);
+      font-weight:600;
+    }
+    .navitem:hover{background:var(--panel2)}
+    .navitem.active{background:rgba(24,119,242,.10);border-color:rgba(24,119,242,.25)}
+    .navitem i{width:22px;text-align:center;color:var(--muted)}
+    .navitem.active i{color:var(--blue)}
+
+    .primary{
+      border:0;
+      background:var(--blue);
+      color:#fff;
+      font-weight:700;
+      padding:12px 14px;
+      border-radius:999px;
+      cursor:pointer;
+      display:flex;align-items:center;justify-content:center;gap:10px;
+      transition:transform var(--trans), filter var(--trans);
+    }
+    .primary:hover{transform:translateY(-1px);filter:brightness(.98)}
+
+    .section{padding-top:4px}
+    .section-title{font-weight:700;color:var(--text);font-size:13px;margin-bottom:8px}
+
+    .muted{color:var(--muted);font-size:13px}
+    .tiny{font-size:12px}
+
+    .row{display:flex;align-items:center;gap:8px;margin-top:8px}
+    .pill{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-weight:600;color:var(--muted);font-size:12px}
+    #radiusInput{width:90px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 10px;outline:0;color:var(--text)}
+
+    .select{width:100%;height:38px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);padding:0 10px;outline:0;font-weight:600;color:var(--text)}
+
+    .cats{display:flex;flex-direction:column;gap:6px}
+    .catbtn{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:var(--panel2);
+      cursor:pointer;
+      transition:transform var(--trans);
+      color:var(--text);
+    }
+    .catbtn:hover{transform:translateY(-1px)}
+    .catbtn .left{display:flex;align-items:center;gap:10px}
+    .catbtn i{color:var(--muted)}
+    .catbtn.active{border-color:rgba(24,119,242,.30);background:rgba(24,119,242,.10)}
+    .catbtn.active i{color:var(--blue)}
+
+    .footer{margin-top:auto;border-top:1px solid var(--line);padding-top:12px}
+    .me{font-weight:700;color:var(--text)}
+
+    .content{flex:1;min-width:0;background:var(--bg);overflow:auto;min-height:0}
+    .view{min-height:100%}
+
+    .grid{
+      padding:16px;
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+      gap:14px;
+    }
+
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:16px;
+      overflow:hidden;
+      cursor:pointer;
+      transition:transform var(--trans), box-shadow var(--trans);
+    }
+    .card:hover{transform:translateY(-2px);box-shadow:0 14px 24px rgba(15,23,42,.12)}
+
+    .card .thumb{
+      height:160px;
+      background:linear-gradient(180deg,#e9eef5,#f7f8fa);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+    }
+    :root[data-theme="dark"] .card .thumb{
+      background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));
+    }
+    .card .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+    .empty{padding:40px 20px;text-align:center}
+    .empty-title{font-weight:800;font-size:18px;color:var(--text)}
+    .empty-sub{color:var(--muted);margin-top:6px}
+
+    .noimg{
+      width:100%;
+      height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      gap:8px;
+      color:var(--muted);
+      font-weight:700;
+    }
+    .noimg i{font-size:28px; opacity:.65}
+    .noimg-dark{color:#e5e7eb}
+    .noimg-dark i{color:#e5e7eb}
+
+    .thumbs{
+      display:flex;
+      gap:10px;
+      padding:10px;
+      background:var(--panel);
+      border-top:1px solid var(--line);
+      overflow:auto;
+    }
+    .thumb-mini{
+      width:86px;
+      height:64px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:var(--panel2);
+      overflow:hidden;
+      padding:0;
+      cursor:pointer;
+      flex:0 0 auto;
+    }
+    .thumb-mini img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .thumb-mini.active{
+      border-color:rgba(24,119,242,.45);
+      box-shadow:0 0 0 3px rgba(24,119,242,.14) inset;
+    }
+
+    .detail{
+      padding:16px;
+      display:grid;
+      grid-template-columns: minmax(320px, 2.2fr) minmax(320px, 1fr);
+      gap:16px;
+    }
+    .detail-left,
+    .detail-right{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+
+    .gallery{
+      height:520px;
+      background:#111827;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+    }
+    .gallery img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+    .gallery .nav{
+      position:absolute; inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 12px;
+      pointer-events:none;
+    }
+    .gallery .nav button{
+      pointer-events:auto;
+      border:0;
+      background:rgba(255,255,255,.15);
+      color:#fff;
+      height:40px;width:40px;
+      border-radius:999px;
+      cursor:pointer;
+    }
+
+    .detail-right{padding:14px}
+    .detail-right h2{margin:0;font-size:22px;color:var(--text)}
+    .price{font-weight:800;color:var(--text);font-size:18px}
+    .detail-right .price{font-size:22px}
+    .detail-right .sub{margin-top:4px;color:var(--muted);font-size:13px}
+
+    .btnrow{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+    .btn{
+      border:1px solid var(--line);
+      background:var(--panel2);
+      color:var(--text);
+      font-weight:700;
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      display:flex;align-items:center;gap:10px;
+    }
+    .btn:hover{filter:brightness(.98)}
+
+    .hr{height:1px;background:var(--line);margin:14px 0}
+    .kv{display:flex;justify-content:space-between;color:var(--muted);font-size:13px;margin-top:8px}
+    .kv b{color:var(--text)}
+    .desc{white-space:pre-wrap;color:var(--text);font-size:14px;line-height:1.4;margin-top:10px}
+
+    .map{
+      margin-top:12px;
+      height:140px;
+      border-radius:14px;
+      background:linear-gradient(135deg,#0ea5e9,#22c55e);
+      opacity:.22;
+      border:1px solid var(--line);
+    }
+
+    /* Inbox: UPDATED for container sizing (no 100vh math) */
+    .inbox{
+      padding:16px;
+      display:grid;
+      grid-template-columns: 320px 1fr;
+      gap:16px;
+      min-height:100%;
+    }
+    .panel{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:16px;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    .panel-head{padding:12px 14px;border-bottom:1px solid var(--line);font-weight:800;color:var(--text)}
+    .thread-list{flex:1;overflow:auto;max-height:none}
+    .thread{padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+    .thread:hover{background:var(--panel2)}
+    .thread.active{background:rgba(24,119,242,.10)}
+    .thread .t1{font-weight:800;color:var(--text);font-size:14px}
+    .thread .t2{color:var(--muted);font-size:12px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    .chat{display:flex;flex-direction:column;min-height:0}
+    .messages{
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      overflow:auto;
+      flex:1;              /* fills available space */
+      max-height:none;     /* no vh calc */
+      min-height:0;
+    }
+    .bubble{max-width:72%;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--panel2);color:var(--text);line-height:1.3}
+    .bubble.me{align-self:flex-end;background:rgba(24,119,242,.12);border-color:rgba(24,119,242,.22)}
+    .bubble .time{display:block;margin-top:6px;font-size:11px;color:var(--muted)}
+
+    .compose{display:flex;gap:10px;padding:12px 14px;border-top:1px solid var(--line)}
+    .compose input{flex:1;height:40px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);padding:0 14px;outline:0;color:var(--text)}
+    .compose button{height:40px;border-radius:999px}
+
+    /* Modals: contained INSIDE window (not fullscreen) */
+    .backdrop{
+      position:absolute;
+      inset:0;
+      background:rgba(0,0,0,.35);
+      z-index:30;
+    }
+    .modal{
+      position:absolute;
+      top:50%;left:50%;
+      transform:translate(-50%,-50%);
+      width:min(720px, calc(100% - 40px));
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:18px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      z-index:31;
+    }
+    .modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+    .modal-title{font-weight:900;color:var(--text)}
+    .modal-body{padding:14px 16px}
+
+    .tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+    .tab{padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel2);cursor:pointer;font-weight:800;color:var(--text);display:flex;gap:8px;align-items:center}
+    .tab.active{background:rgba(24,119,242,.12);border-color:rgba(24,119,242,.25);color:var(--blue)}
+
+    .form .label{font-weight:800;color:var(--text);font-size:12px;margin-bottom:6px}
+    .form input, .form textarea{
+      width:100%;
+      border:1px solid var(--line);
+      background:var(--panel2);
+      border-radius:14px;
+      padding:10px 12px;
+      outline:0;
+      font-size:14px;
+      color:var(--text);
+    }
+    .form textarea{min-height:90px;resize:none}
+    .row2{display:grid;grid-template-columns: 1fr 1fr;gap:12px}
+
+    .photos{margin-top:10px}
+    .photos-head{display:flex;align-items:center;justify-content:space-between}
+    .photo-strip{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+    .photo{width:120px;height:86px;border-radius:12px;border:1px solid var(--line);overflow:hidden;background:var(--panel2);position:relative}
+    .photo img{width:100%;height:100%;object-fit:cover;display:block}
+    .photo button{position:absolute;top:6px;right:6px;height:28px;width:28px;border-radius:999px;border:0;background:rgba(15,23,42,.65);color:#fff;cursor:pointer}
+
+    .actions{display:flex;justify-content:flex-end;margin-top:12px;gap:10px;flex-wrap:wrap}
+
+    /* Settings row */
+    .range{
+      width:100%;
+      accent-color: var(--blue);
+    }
+    .help{
+      margin-top:10px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+
+    /* Responsive */
+    @media (max-width: 1000px){
+      :root{ --minW: 520px; --minH: 520px; }
+      .sidebar{width:280px}
+      .detail{grid-template-columns:1fr}
+      .gallery{height:380px}
+      .inbox{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="app hidden">
+    <div id="window" class="window">
+      <!-- RESIZE HANDLE -->
+      <div id="winResizer" class="resizer" title="Resize"></div>
+
+      <div id="windowInner" style="height:100%;display:flex;flex-direction:column;min-height:0">
+        <!-- Toast notifications (in-window) -->
+        <div id="toastHost" class="toasts"></div>
+
+        <div class="topbar" id="dragHandle">
+          <div class="brand">
+            <div class="fb">A</div>
+            <div class="title">Marketplace</div>
+          </div>
+
+          <div class="search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="searchInput" type="text" placeholder="Search Marketplace" />
+          </div>
+
+          <div class="top-actions">
+            <button class="iconbtn" id="btnHome" title="Browse"><i class="fa-solid fa-store"></i></button>
+            <button class="iconbtn" id="btnInbox" title="Inbox"><i class="fa-solid fa-inbox"></i></button>
+            <button class="iconbtn" id="btnSell" title="Selling"><i class="fa-solid fa-tag"></i></button>
+            <button class="iconbtn" id="btnSettingsTop" title="Settings"><i class="fa-solid fa-gear"></i></button>
+            <button class="iconbtn" id="btnClose" title="Close"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+
+        <div class="layout">
+          <aside class="sidebar">
+            <div class="sidebar-head">
+              <div class="h1">Marketplace</div>
+              <button class="iconbtn ghost" id="btnSidebarSettings" title="Settings"><i class="fa-solid fa-gear"></i></button>
+            </div>
+
+            <div class="nav">
+              <button class="navitem" data-route="browse"><i class="fa-solid fa-store"></i><span>Browse all</span></button>
+              <button class="navitem" data-route="inbox"><i class="fa-solid fa-inbox"></i><span>Inbox</span></button>
+              <button class="navitem" data-route="buying"><i class="fa-solid fa-cart-shopping"></i><span>Buying</span></button>
+              <button class="navitem" data-route="selling"><i class="fa-solid fa-tags"></i><span>Selling</span></button>
+            </div>
+
+            <button class="primary" id="btnCreate"><i class="fa-solid fa-plus"></i> Create new listing</button>
+
+            <div class="section">
+              <div class="section-title">Location</div>
+              <div class="muted" id="locationLabel">Loading…</div>
+              <div class="row">
+                <div class="pill">Within</div>
+                <input id="radiusInput" type="number" min="1" max="250" value="65" />
+                <div class="pill">km</div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">Categories</div>
+              <div id="categoryList" class="cats"></div>
+            </div>
+
+            <div class="section">
+              <div class="section-title">Sort</div>
+              <select id="sortSelect" class="select">
+                <option value="newest">Newest</option>
+                <option value="price_low">Price: Low to High</option>
+                <option value="price_high">Price: High to Low</option>
+              </select>
+            </div>
+
+            <div class="footer">
+              <div class="me" id="meLabel">—</div>
+            </div>
+          </aside>
+
+          <main class="content">
+            <div id="viewBrowse" class="view">
+              <div class="grid" id="listingGrid"></div>
+              <div id="emptyBrowse" class="empty hidden">
+                <div class="empty-title">No listings found</div>
+                <div class="empty-sub">Try changing your search, category, or radius.</div>
+              </div>
+            </div>
+
+            <div id="viewDetail" class="view hidden"></div>
+            <div id="viewInbox" class="view hidden"></div>
+            <div id="viewSelling" class="view hidden"></div>
+            <div id="viewBuying" class="view hidden"></div>
+          </main>
+        </div>
+
+        <!-- SETTINGS MODAL (inside window) -->
+        <div id="settingsBackdrop" class="backdrop hidden"></div>
+        <div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true">
+          <div class="modal-head">
+            <div class="modal-title">Settings</div>
+            <button class="iconbtn" id="btnSettingsClose"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="modal-body">
+            <div class="form">
+              <div class="row2">
+                <label>
+                  <div class="label">Theme</div>
+                  <select id="themeSelect" class="select">
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select>
+                </label>
+                <label>
+                  <div class="label">Window Opacity (glass)</div>
+                  <input id="opacityRange" class="range" type="range" min="70" max="100" value="96" />
+                </label>
+              </div>
+
+              <div class="help">
+                Drag the window by the top bar. Resize with the bottom-right corner.
+                Click outside the window passes through visually (NUI focus is still controlled in Lua).
+              </div>
+
+              <div class="actions">
+                <button class="btn" id="btnResetWindow" type="button"><i class="fa-solid fa-rotate-left"></i> Reset window</button>
+                <button class="primary" id="btnSettingsSave" type="button"><i class="fa-solid fa-check"></i> Done</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Menu Modal -->
+        <div id="menuBackdrop" class="backdrop hidden"></div>
+        <div id="menuModal" class="modal hidden" role="dialog" aria-modal="true">
+          <div class="modal-head">
+            <div class="modal-title" id="menuTitle">Actions</div>
+            <button class="iconbtn" id="btnMenuClose"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="modal-body">
+            <div id="menuList" class="modal-list"></div>
+          </div>
+        </div>
+
+        <!-- Confirm Modal -->
+        <div id="confirmBackdrop" class="backdrop hidden"></div>
+        <div id="confirmModal" class="modal hidden" role="dialog" aria-modal="true">
+          <div class="modal-head">
+            <div class="modal-title" id="confirmTitle">Confirm</div>
+            <button class="iconbtn" id="btnConfirmClose"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="modal-body">
+            <div class="confirm-text" id="confirmText">Are you sure?</div>
+            <div class="actions">
+              <button class="btn" id="btnConfirmCancel" type="button">Cancel</button>
+              <button class="primary" id="btnConfirmOk" type="button">Confirm</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Create Listing Modal (inside window) -->
+        <div id="modalBackdrop" class="backdrop hidden"></div>
+        <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+          <div class="modal-head">
+            <div class="modal-title">Create new listing</div>
+            <button class="iconbtn" id="btnModalClose"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+
+          <div class="modal-body">
+            <div class="tabs" id="typeTabs"></div>
+
+            <div class="form" id="createForm">
+              <div class="row2">
+                <label>
+                  <div class="label">Category</div>
+                  <select id="fCategory" class="select"></select>
+                </label>
+                <label>
+                  <div class="label">Condition</div>
+                  <select id="fCondition" class="select"></select>
+                </label>
+              </div>
+
+              <div id="sourceRow" class="row2 hidden">
+                <label id="sourceLabelWrap">
+                  <div class="label" id="sourceLabel">Select</div>
+                  <select id="fSource" class="select"></select>
+                </label>
+                <label>
+                  <div class="label">Price</div>
+                  <input id="fPrice" type="number" min="0" step="1" placeholder="0" />
+                </label>
+              </div>
+
+              <label>
+                <div class="label">Title</div>
+                <input id="fTitle" type="text" maxlength="64" placeholder="What are you selling?" />
+              </label>
+
+              <label>
+                <div class="label">Description</div>
+                <textarea id="fDesc" maxlength="800" placeholder="Add details, condition, pickup location, etc."></textarea>
+              </label>
+
+              <div class="photos">
+                <div class="photos-head">
+                  <div class="label">Photos</div>
+                  <button id="btnAddPhoto" class="btn" type="button"><i class="fa-solid fa-camera"></i> Screenshot</button>
+                </div>
+                <div id="photoStrip" class="photo-strip"></div>
+                <div class="muted tiny">Uses screenshot-basic. Max images + size are server-configurable.</div>
+              </div>
+
+              <div class="actions">
+                <button id="btnCreateSubmit" class="primary" type="button">Publish listing</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /windowInner -->
+    </div><!-- /window -->
+  </div><!-- /app -->
+
+  <script>
+    /* az_marketplace NUI - vanilla JS */
+
+    const RES = (typeof GetParentResourceName === 'function') ? GetParentResourceName() : 'az_marketplace';
+
+    const $ = (q, el = document) => el.querySelector(q);
+    const $$ = (q, el = document) => Array.from(el.querySelectorAll(q));
+
+    const state = {
+      open: false,
+      me: { name: '', discord: '', charid: null, isAdmin: false },
+      config: {
+        categories: [],
+        conditions: [],
+        listingTypes: {},
+        defaultSort: 'newest',
+        defaultRadiusKm: 65,
+        maxRadiusKm: 250,
+        maxImages: 4,
+        screenshotsEnabled: true,
+        defaultLocationLabel: 'Los Santos',
+        adminCanModerate: true,
+
+        // ✅ chat live refresh (AJAX polling fallback, does NOT wipe typing)
+        chatPollMs: 1500
+      },
+      view: 'browse',
+      filters: { search: '', category: 'all', sort: 'newest', radiusKm: 65 },
+      listings: [],
+      listing: null,
+      myListings: [],
+      inbox: {
+        threads: [],
+        active: null,
+        messages: [],
+        activeMeta: null,
+
+        // ✅ NEW: per-thread draft text (prevents wipe)
+        drafts: {},
+
+        // ✅ NEW: poll timer
+        poll: { timer: null, view: null, lastSig: '' }
+      },
+      create: { open: false, type: 'item', photos: [], sources: { vehicles: [], houses: [], rentals: [] } },
+      detailIndex: 0,
+    };
+
+    /* ===================== WINDOW PREFS (drag/resize/theme) ===================== */
+
+    const PREF_KEY = 'az_marketplace_ui_prefs_v1';
+
+    /* ===================== TOAST NOTIFICATIONS (no popouts) ===================== */
+    function escapeHtml(str){
+      return String(str||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function toast(type='info', title='Marketplace', message='', ttl=3200){
+      const host = $('#toastHost');
+      if(!host) return;
+
+      const icon = ({
+        success:'fa-circle-check',
+        error:'fa-triangle-exclamation',
+        warn:'fa-circle-exclamation',
+        info:'fa-circle-info'
+      }[type] || 'fa-circle-info');
+
+      const el = document.createElement('div');
+      el.className = 'toast';
+      el.dataset.type = type;
+      el.innerHTML = `
+        <div class="ico"><i class="fa-solid ${icon}"></i></div>
+        <div class="body">
+          <div class="t1">${escapeHtml(title)}</div>
+          <div class="t2">${escapeHtml(message)}</div>
+        </div>
+        <button class="x" title="Close"><i class="fa-solid fa-xmark"></i></button>
+      `;
+
+      let gone = false;
+      const kill = () => {
+        if(gone) return;
+        gone = true;
+        el.classList.remove('show');
+        setTimeout(() => el.remove(), 180);
+      };
+
+      el.querySelector('.x').onclick = kill;
+      host.appendChild(el);
+      requestAnimationFrame(() => el.classList.add('show'));
+      if(ttl > 0) setTimeout(kill, ttl);
+    }
+
+    const notify = {
+      ok: (m,t='Marketplace') => toast('success', t, m),
+      info: (m,t='Marketplace') => toast('info', t, m),
+      warn: (m,t='Marketplace') => toast('warn', t, m, 4200),
+      err: (m,t='Marketplace') => toast('error', t, m, 5200),
+    };
+
+    /* ===================== IN-APP MENU + CONFIRM ===================== */
+    function openMenu(show){
+      $('#menuBackdrop')?.classList.toggle('hidden', !show);
+      $('#menuModal')?.classList.toggle('hidden', !show);
+    }
+    function openConfirm(show){
+      $('#confirmBackdrop')?.classList.toggle('hidden', !show);
+      $('#confirmModal')?.classList.toggle('hidden', !show);
+    }
+
+    function uiMenu({ title='Actions', items=[] }){
+      return new Promise((resolve) => {
+        $('#menuTitle').textContent = title;
+        const list = $('#menuList');
+        list.innerHTML = '';
+
+        const close = (val=null) => { openMenu(false); resolve(val); };
+
+        items.forEach(it => {
+          const b = document.createElement('button');
+          b.className = 'actionbtn' + (it.danger ? ' danger' : '');
+          b.innerHTML = `
+            <span style="display:flex;align-items:center;gap:10px">
+              <i class="fa-solid ${it.icon || 'fa-ellipsis'}"></i>
+              <span>${escapeHtml(it.label || it.key)}</span>
+            </span>
+            <i class="fa-solid fa-chevron-right" style="opacity:.5"></i>
+          `;
+          b.onclick = () => close(it.key);
+          list.appendChild(b);
+        });
+
+        $('#btnMenuClose').onclick = () => close(null);
+        $('#menuBackdrop').onclick = () => close(null);
+
+        openMenu(true);
+      });
+    }
+
+    function uiConfirm({ title='Confirm', text='Are you sure?', confirmText='Confirm', danger=false }){
+      return new Promise((resolve) => {
+        $('#confirmTitle').textContent = title;
+        $('#confirmText').textContent = text;
+
+        const okBtn = $('#btnConfirmOk');
+        okBtn.textContent = confirmText;
+        okBtn.classList.toggle('danger', !!danger);
+
+        const done = (v) => { openConfirm(false); resolve(!!v); };
+
+        $('#btnConfirmClose').onclick = () => done(false);
+        $('#btnConfirmCancel').onclick = () => done(false);
+        $('#confirmBackdrop').onclick = () => done(false);
+        okBtn.onclick = () => done(true);
+
+        openConfirm(true);
+      });
+    }
+
+    function loadPrefs(){
+      try{
+        const raw = localStorage.getItem(PREF_KEY);
+        return raw ? JSON.parse(raw) : {};
+      }catch(e){ return {}; }
+    }
+    function savePrefs(p){
+      try{ localStorage.setItem(PREF_KEY, JSON.stringify(p||{})); }catch(e){}
+    }
+
+    function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+    function applyTheme(theme){
+      const t = (theme === 'dark') ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+      $('#themeSelect').value = t;
+    }
+
+    function applyOpacity(pct){
+      const v = clamp(Number(pct||96), 70, 100);
+      // maps 70..100 => 0.70..1.00
+      document.documentElement.style.setProperty('--winA', (v/100).toFixed(2));
+      $('#opacityRange').value = String(v);
+    }
+
+    function applyWindowRect(rect){
+      const win = $('#window');
+      if(!win) return;
+
+      const vw = window.innerWidth || 1280;
+      const vh = window.innerHeight || 720;
+
+      const minW = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--minW')) || 860;
+      const minH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--minH')) || 560;
+
+      let w = clamp(Number(rect?.w || 1240), Math.min(minW, vw-16), vw - 16);
+      let h = clamp(Number(rect?.h || 760), Math.min(minH, vh-16), vh - 16);
+
+      let x = clamp(Number(rect?.x ?? 60), 8, vw - w - 8);
+      let y = clamp(Number(rect?.y ?? 60), 8, vh - h - 8);
+
+      win.style.width = w + 'px';
+      win.style.height = h + 'px';
+      win.style.left = x + 'px';
+      win.style.top = y + 'px';
+    }
+
+    function resetWindow(){
+      const win = $('#window');
+      if(!win) return;
+      win.style.left = '60px';
+      win.style.top = '60px';
+      win.style.width = `min(1240px, 95vw)`;
+      win.style.height = `min(760px, 90vh)`;
+      // force computed px apply after a tick
+      setTimeout(() => {
+        const r = win.getBoundingClientRect();
+        applyWindowRect({ x: r.left, y: r.top, w: r.width, h: r.height });
+        persistWindowRect();
+      }, 0);
+    }
+
+    function persistWindowRect(){
+      const win = $('#window');
+      if(!win) return;
+      const r = win.getBoundingClientRect();
+      const prefs = loadPrefs();
+      prefs.rect = { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+      savePrefs(prefs);
+    }
+
+    function initPrefs(){
+      const prefs = loadPrefs();
+      applyTheme(prefs.theme || 'light');
+      applyOpacity(prefs.opacity ?? 96);
+      applyWindowRect(prefs.rect || { x:60, y:60, w:1240, h:760 });
+    }
+
+    function openSettings(show){
+      $('#settingsBackdrop').classList.toggle('hidden', !show);
+      $('#settingsModal').classList.toggle('hidden', !show);
+    }
+
+    /* Drag */
+    function initDrag(){
+      const win = $('#window');
+      const handle = $('#dragHandle');
+      if(!win || !handle) return;
+
+      let dragging = false;
+      let startX=0, startY=0, startL=0, startT=0;
+
+      const isInteractive = (el) => {
+        if(!el) return false;
+        return !!el.closest('input, textarea, select, button, a, .iconbtn, .search, .thumb-mini');
+      };
+
+      const onDown = (e) => {
+        if(e.button !== 0) return;
+        if(isInteractive(e.target)) return;
+
+        dragging = true;
+        win.classList.add('dragging');
+
+        const r = win.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        startL = r.left;
+        startT = r.top;
+
+        handle.setPointerCapture?.(e.pointerId);
+        e.preventDefault();
+      };
+
+      const onMove = (e) => {
+        if(!dragging) return;
+
+        const vw = window.innerWidth || 1280;
+        const vh = window.innerHeight || 720;
+        const r = win.getBoundingClientRect();
+
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        let nx = startL + dx;
+        let ny = startT + dy;
+
+        nx = clamp(nx, 8, vw - r.width - 8);
+        ny = clamp(ny, 8, vh - r.height - 8);
+
+        win.style.left = nx + 'px';
+        win.style.top  = ny + 'px';
+      };
+
+      const onUp = (e) => {
+        if(!dragging) return;
+        dragging = false;
+        win.classList.remove('dragging');
+        persistWindowRect();
+        handle.releasePointerCapture?.(e.pointerId);
+      };
+
+      handle.addEventListener('pointerdown', onDown);
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    }
+
+    /* Resize */
+    function initResize(){
+      const win = $('#window');
+      const grip = $('#winResizer');
+      if(!win || !grip) return;
+
+      let resizing = false;
+      let startX=0, startY=0, startW=0, startH=0;
+
+      const onDown = (e) => {
+        if(e.button !== 0) return;
+        resizing = true;
+
+        const r = win.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        startW = r.width;
+        startH = r.height;
+
+        grip.setPointerCapture?.(e.pointerId);
+        e.preventDefault();
+        e.stopPropagation();
+      };
+
+      const onMove = (e) => {
+        if(!resizing) return;
+
+        const vw = window.innerWidth || 1280;
+        const vh = window.innerHeight || 720;
+
+        const root = getComputedStyle(document.documentElement);
+        const minW = parseInt(root.getPropertyValue('--minW')) || 860;
+        const minH = parseInt(root.getPropertyValue('--minH')) || 560;
+
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        let w = startW + dx;
+        let h = startH + dy;
+
+        // clamp to viewport
+        const r = win.getBoundingClientRect();
+        const maxW = vw - r.left - 8;
+        const maxH = vh - r.top  - 8;
+
+        w = clamp(w, Math.min(minW, maxW), maxW);
+        h = clamp(h, Math.min(minH, maxH), maxH);
+
+        win.style.width = w + 'px';
+        win.style.height = h + 'px';
+      };
+
+      const onUp = (e) => {
+        if(!resizing) return;
+        resizing = false;
+        persistWindowRect();
+        grip.releasePointerCapture?.(e.pointerId);
+      };
+
+      grip.addEventListener('pointerdown', onDown);
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    }
+
+    /* Keep window in-bounds on resolution changes */
+    window.addEventListener('resize', () => {
+      const prefs = loadPrefs();
+      applyWindowRect(prefs.rect || {});
+      persistWindowRect();
+    });
+
+    /* ===================== ORIGINAL APP CODE (kept) ===================== */
+
+    function fmtMoney(n){
+      n = Number(n||0);
+      return '$' + n.toLocaleString();
+    }
+
+    function relTime(v){
+      if(v == null || v === '') return '';
+      let ms = null;
+      if (v instanceof Date) {
+        ms = v.getTime();
+      } else if (typeof v === 'number') {
+        ms = (v < 1e12) ? v * 1000 : v;
+      } else if (typeof v === 'string' && /^\d+$/.test(v.trim())) {
+        const n = Number(v.trim());
+        ms = (n < 1e12) ? n * 1000 : n;
+      } else if (typeof v === 'string') {
+        const s = v.trim();
+        const iso = s.includes('T') ? s : s.replace(' ', 'T');
+        const d = new Date(iso.endsWith('Z') ? iso : (iso + 'Z'));
+        ms = d.getTime();
+      } else {
+        const d = new Date(v);
+        ms = d.getTime();
+      }
+
+      if (!Number.isFinite(ms)) return '';
+      const diffS = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+      const m = Math.floor(diffS / 60);
+      const h = Math.floor(m / 60);
+      const d = Math.floor(h / 24);
+
+      if (d > 0) return `${d}d ago`;
+      if (h > 0) return `${h}h ago`;
+      if (m > 0) return `${m}m ago`;
+      return 'Just now';
+    }
+
+    async function nui(action, data = {}){
+      try{
+        const res = await fetch(`https://${RES}/request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+          body: JSON.stringify({ action, data })
+        });
+        const txt = await res.text();
+        return txt ? JSON.parse(txt) : { ok:false, data:{ error:'Empty response' } };
+      }catch(e){
+        console.error('NUI request failed', action, e);
+        return { ok:false, data:{ error:'NUI request failed' } };
+      }
+    }
+
+    async function nuiAddPhoto(){
+      try{
+        const res = await fetch(`https://${RES}/addPhoto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+          body: JSON.stringify({})
+        });
+        const txt = await res.text();
+        return txt ? JSON.parse(txt) : { ok:false, data:{ error:'Empty response' } };
+      }catch(e){
+        console.error('NUI addPhoto failed', e);
+        return { ok:false, data:{ error:'NUI addPhoto failed' } };
+      }
+    }
+
+    function showApp(show){
+      state.open = !!show;
+      const app = $('#app');
+      if(show){
+        app.classList.remove('hidden');
+        initPrefs();
+      } else {
+        app.classList.add('hidden');
+        stopInboxPoll();
+      }
+    }
+
+    function setView(view, opts = {}){
+      const refresh = (opts.refresh !== false);
+
+      state.view = view;
+      ['browse','detail','inbox','selling','buying'].forEach(v => {
+        const el = $(`#view${v[0].toUpperCase()+v.slice(1)}`);
+        if(!el) return;
+        el.classList.toggle('hidden', v !== view);
+      });
+
+      $$('.navitem').forEach(b => b.classList.toggle('active', b.dataset.route === view));
+
+      // start/stop chat polling
+      if(view === 'inbox' || view === 'buying') startInboxPoll(view);
+      else stopInboxPoll();
+
+      if(!refresh) return;
+
+      if(view === 'browse') refreshBrowse();
+      if(view === 'selling') refreshSelling();
+      if(view === 'inbox' || view === 'buying') refreshInbox(view);
+    }
+
+    function getListingId(l){
+      const id = l?.id ?? l?.listing_id ?? l?.listingId ?? l?.listingID ?? l?.listingid;
+      const n = Number(id);
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+
+    function getSellerName(l){
+      return (l && (l.seller_name || (l.seller && l.seller.name))) || 'Seller';
+    }
+    function getSellerDiscord(l){
+      if(!l) return '';
+      const direct = l.seller_discord ?? l.sellerDiscord ?? l.seller_id ?? l.sellerId ?? l.sellerID ?? l.seller;
+      if(typeof direct === 'string' && direct.trim()) return direct.trim();
+      if(typeof direct === 'number' && Number.isFinite(direct)) return String(direct);
+
+      const s = l.seller || l.seller_info || l.owner || null;
+      const nested = s && (s.discord ?? s.discord_id ?? s.discordId ?? s.id);
+      if(typeof nested === 'string' && nested.trim()) return nested.trim();
+      if(typeof nested === 'number' && Number.isFinite(nested)) return String(nested);
+
+      return '';
+    }
+    function listingIsMe(l){
+      const sd = getSellerDiscord(l);
+      if(!sd || !state.me.discord) return false;
+      return String(sd) === String(state.me.discord);
+    }
+
+    function ensureCreateDropdowns(){
+      const catSel = $('#fCategory');
+      const condSel = $('#fCondition');
+
+      if(catSel && catSel.options.length === 0 && (state.config.categories||[]).length){
+        catSel.innerHTML = (state.config.categories||[])
+          .filter(c=>c.id!=='all')
+          .map(c=>`<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+      }
+      if(condSel && condSel.options.length === 0 && (state.config.conditions||[]).length){
+        condSel.innerHTML = (state.config.conditions||[])
+          .map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      }
+    }
+
+    function renderCategories(){
+      const wrap = $('#categoryList');
+      wrap.innerHTML = '';
+
+      (state.config.categories || []).forEach(cat => {
+        const b = document.createElement('button');
+        b.className = 'catbtn' + (state.filters.category === cat.id ? ' active' : '');
+        b.innerHTML = `
+          <div class="left">
+            <i class="fa-solid ${cat.icon||'fa-tags'}"></i>
+            <span>${escapeHtml(cat.label||cat.id)}</span>
+          </div>
+        `;
+        b.onclick = () => { state.filters.category = cat.id; renderCategories(); refreshBrowse(); };
+        wrap.appendChild(b);
+      });
+    }
+
+    function renderTypeTabs(){
+      const wrap = $('#typeTabs');
+      wrap.innerHTML = '';
+      const order = ['item','vehicle','house','rental'];
+
+      order.forEach(t => {
+        const meta = state.config.listingTypes?.[t] || { label: t };
+        const btn = document.createElement('button');
+        btn.className = 'tab' + (state.create.type === t ? ' active' : '');
+        btn.innerHTML = `<i class="fa-solid ${meta.icon||'fa-tag'}"></i><span>${escapeHtml(meta.label||t)}</span>`;
+        btn.onclick = () => { state.create.type = t; renderTypeTabs(); renderCreateSource(); };
+        wrap.appendChild(btn);
+      });
+    }
+
+    function renderCreateSource(){
+      const row = $('#sourceRow');
+      const select = $('#fSource');
+      const label = $('#sourceLabel');
+
+      const type = state.create.type;
+
+      if(type === 'vehicle'){
+        row.classList.remove('hidden');
+        label.textContent = 'My Vehicles (plate)';
+        select.innerHTML = `<option value="">Select vehicle…</option>` + state.create.sources.vehicles.map(v =>
+          `<option value="${escapeHtml(v.id)}">${escapeHtml(v.plate)} — ${escapeHtml(v.model||'')}</option>`
+        ).join('');
+      } else if(type === 'house'){
+        row.classList.remove('hidden');
+        label.textContent = 'My Houses';
+        select.innerHTML = `<option value="">Select house…</option>` + state.create.sources.houses.map(h =>
+          `<option value="${h.id}">#${h.id} — ${escapeHtml(h.label||h.name||('House '+h.id))} ($${Number(h.price||0).toLocaleString()})</option>`
+        ).join('');
+      } else if(type === 'rental'){
+        row.classList.remove('hidden');
+        label.textContent = 'My Rentals';
+        select.innerHTML = `<option value="">Select rental…</option>` + state.create.sources.rentals.map(r =>
+          `<option value="${r.house_id}">House #${r.house_id} — ${escapeHtml(r.label||r.name||('House '+r.house_id))} ($${Number(r.rent_per_week||0).toLocaleString()}/wk)</option>`
+        ).join('');
+      } else {
+        row.classList.add('hidden');
+        select.innerHTML = '';
+      }
+
+      select.onchange = () => {
+        const val = select.value;
+        if(!val) return;
+
+        if(type === 'vehicle'){
+          const v = state.create.sources.vehicles.find(x => x.plate === val);
+          if(v){
+            if(!$('#fTitle').value) $('#fTitle').value = `${v.model || 'Vehicle'} (${v.plate})`;
+          }
+        }
+        if(type === 'house'){
+          const h = state.create.sources.houses.find(x => String(x.id) === String(val));
+          if(h){
+            if(!$('#fTitle').value) $('#fTitle').value = `${h.label || h.name || 'House'} (#${h.id})`;
+            if(!$('#fPrice').value) $('#fPrice').value = Number(h.price||0);
+          }
+        }
+        if(type === 'rental'){
+          const r = state.create.sources.rentals.find(x => String(x.house_id) === String(val));
+          if(r){
+            if(!$('#fTitle').value) $('#fTitle').value = `Rental — ${r.label || r.name || 'House'} (#${r.house_id})`;
+            if(!$('#fPrice').value) $('#fPrice').value = Number(r.rent_per_week||0);
+          }
+        }
+      };
+    }
+
+    function dataUrlBytes(dataUrl){
+      const i = dataUrl.indexOf(',');
+      if (i === -1) return dataUrl.length;
+      const b64 = dataUrl.slice(i + 1);
+      return Math.floor((b64.length * 3) / 4);
+    }
+
+    function compressDataUrl(dataUrl, maxW = 900, maxH = 900, quality = 0.65, mime = 'image/jpeg'){
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          const scale = Math.min(1, maxW / w, maxH / h);
+          w = Math.max(1, Math.round(w * scale));
+          h = Math.max(1, Math.round(h * scale));
+
+          const c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          const ctx = c.getContext('2d', { alpha: false });
+          ctx.drawImage(img, 0, 0, w, h);
+
+          resolve(c.toDataURL(mime, quality));
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
+    }
+
+    function renderPhotoStrip(){
+      const wrap = $('#photoStrip');
+      wrap.innerHTML = '';
+      state.create.photos.forEach((p, idx) => {
+        const div = document.createElement('div');
+        div.className = 'photo';
+        div.innerHTML = `<img src="${p}" /><button title="Remove"><i class="fa-solid fa-trash"></i></button>`;
+        div.querySelector('button').onclick = () => {
+          state.create.photos.splice(idx,1);
+          renderPhotoStrip();
+        };
+        wrap.appendChild(div);
+      });
+    }
+
+    function firstImageFromListing(l){
+      if(!l) return null;
+      if(l.image) return l.image;
+
+      if(Array.isArray(l.images) && l.images.length) return l.images[0];
+
+      if(typeof l.images === 'string'){
+        try{
+          const arr = JSON.parse(l.images);
+          if(Array.isArray(arr) && arr.length) return arr[0];
+        }catch(e){}
+      }
+      return null;
+    }
+
+    function renderGrid(){
+      const grid = $('#listingGrid');
+      grid.innerHTML = '';
+
+      if(!state.listings || state.listings.length === 0){
+        $('#emptyBrowse').classList.remove('hidden');
+        return;
+      }
+      $('#emptyBrowse').classList.add('hidden');
+
+      state.listings.forEach(l => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const imgSrc = firstImageFromListing(l);
+        const img = imgSrc ? `<img src="${imgSrc}" />` : `<div class="noimg"><i class="fa-solid fa-image"></i></div>`;
+        const loc = l.location_label || 'Los Santos';
+
+        card.innerHTML = `
+          <div class="thumb">${img}</div>
+          <div class="meta" style="padding:12px 12px 14px">
+            <div class="price">${fmtMoney(l.price)}</div>
+            <div class="title2">${escapeHtml(l.title)}</div>
+            <div class="muted tiny" style="margin-top:6px">${escapeHtml(loc)} • ${escapeHtml(l.listing_type||'item')}</div>
+          </div>
+        `;
+
+        const id = getListingId(l);
+        card.onclick = () => {
+          if(!id){
+            console.warn('[marketplace] Listing missing id field:', l);
+            return;
+          }
+          openDetail(id);
+        };
+
+        grid.appendChild(card);
+      });
+    }
+
+    function renderDetail(){
+      const wrap = $('#viewDetail');
+      const l = state.listing;
+      if(!l){ wrap.innerHTML = ''; return; }
+
+      if(!l.id) l.id = getListingId(l);
+
+      let imgs = [];
+      if(Array.isArray(l.images)) imgs = l.images;
+      else if(typeof l.images === 'string'){
+        try { imgs = JSON.parse(l.images); } catch(e){ imgs = []; }
+      }
+
+      if(!Number.isInteger(state.detailIndex)) state.detailIndex = 0;
+      if(state.detailIndex < 0) state.detailIndex = 0;
+      if(state.detailIndex > imgs.length - 1) state.detailIndex = Math.max(0, imgs.length - 1);
+
+      const mainImg = imgs[state.detailIndex] || null;
+
+      const kvs = [];
+      kvs.push(`<div class="kv"><span>Condition</span><b>${escapeHtml(l.condition || '')}</b></div>`);
+
+      if(l.listing_type === 'vehicle'){
+        const s = l.source || {};
+        kvs.push(`<div class="kv"><span>Plate</span><b>${escapeHtml(s.plate || l.source_ref || '')}</b></div>`);
+        kvs.push(`<div class="kv"><span>Model</span><b>${escapeHtml(s.model || '')}</b></div>`);
+      }
+
+      if(l.listing_type === 'house' || l.listing_type === 'rental'){
+        const s = l.source || {};
+        const hid = s.house_id || l.source_ref || '?';
+        kvs.push(`<div class="kv"><span>Property</span><b>${escapeHtml((s.label || s.name || 'House') + ' (#' + hid + ')')}</b></div>`);
+        if(l.listing_type === 'rental'){
+          kvs.push(`<div class="kv"><span>Rent / week</span><b>${fmtMoney(s.rent_per_week || l.price || 0)}</b></div>`);
+          kvs.push(`<div class="kv"><span>Deposit</span><b>${fmtMoney(s.deposit || 0)}</b></div>`);
+        }
+      }
+
+      const sellerLine = getSellerName(l) + ((l.is_me || listingIsMe(l)) ? ' (You)' : '');
+
+      const thumbs = imgs.length > 1
+        ? `<div class="thumbs">
+            ${imgs.map((src, i) => `
+              <button class="thumb-mini ${i===state.detailIndex?'active':''}" data-idx="${i}" title="Photo ${i+1}">
+                <img src="${src}" />
+              </button>
+            `).join('')}
+          </div>`
+        : '';
+
+      wrap.innerHTML = `
+        <div class="detail">
+          <div class="detail-left">
+            <div class="gallery">
+              ${
+                mainImg
+                  ? `<img src="${mainImg}" />`
+                  : `<div class="noimg noimg-dark"><i class="fa-solid fa-image"></i><div>No photo</div></div>`
+              }
+
+              <div class="nav">
+                <button id="btnPrevImg" title="Previous"><i class="fa-solid fa-chevron-left"></i></button>
+                <button id="btnNextImg" title="Next"><i class="fa-solid fa-chevron-right"></i></button>
+              </div>
+            </div>
+            ${thumbs}
+          </div>
+
+          <div class="detail-right">
+            <h2>${escapeHtml(l.title || '')}</h2>
+            <div class="price">${fmtMoney(l.price || 0)}</div>
+            <div class="sub">Listed ${escapeHtml(relTime(l.created_at))} • ${escapeHtml(l.location_label || 'Los Santos')}</div>
+
+            <div class="btnrow">
+              <button class="btn" id="btnBack"><i class="fa-solid fa-arrow-left"></i> Back</button>
+              <button class="btn" id="btnMessage"><i class="fa-brands fa-facebook-messenger"></i> Message</button>
+              <button class="btn" id="btnMore"><i class="fa-solid fa-ellipsis"></i></button>
+            </div>
+
+            <div class="hr"></div>
+            ${kvs.join('')}
+
+            <div class="hr"></div>
+            <div class="desc">${escapeHtml(l.description || '')}</div>
+
+            <div class="hr"></div>
+            <div class="kv"><span>Seller</span><b>${escapeHtml(sellerLine)}</b></div>
+            <div class="muted tiny" style="margin-top:6px">Pickup / meet-up. Use messages to coordinate.</div>
+
+            <div class="map"></div>
+          </div>
+        </div>
+      `;
+
+      $('#btnBack').onclick = () => setView('browse');
+      $('#btnMessage').onclick = () => openThreadFromListing(l);
+
+      const setIdx = (i) => {
+        if(!imgs.length) return;
+        state.detailIndex = (i + imgs.length) % imgs.length;
+        renderDetail();
+      };
+
+      const prev = $('#btnPrevImg');
+      const next = $('#btnNextImg');
+
+      if(imgs.length <= 1){
+        if(prev) prev.style.display = 'none';
+        if(next) next.style.display = 'none';
+      } else {
+        if(prev) prev.onclick = () => setIdx(state.detailIndex - 1);
+        if(next) next.onclick = () => setIdx(state.detailIndex + 1);
+      }
+
+      $$('.thumb-mini', wrap).forEach(b => {
+        b.onclick = () => setIdx(Number(b.dataset.idx || 0));
+      });
+
+      $('#btnMore').onclick = async () => {
+        const sd = getSellerDiscord(l);
+        const amSeller = sd ? listingIsMe(l) : (l.is_me === true || l.is_me === 1 || l.is_me === '1');
+
+        const canAdminModerate = (state.me.isAdmin === true) && (state.config?.adminCanModerate !== false);
+
+        const items = [];
+        if(amSeller) items.push(
+          { key:'sold', label:'Mark as sold', icon:'fa-check' },
+          { key:'delete', label:'Delete listing', icon:'fa-trash', danger:true }
+        );
+        if(!amSeller && canAdminModerate) items.push(
+          { key:'admindelete', label:'Admin delete listing', icon:'fa-shield-halved', danger:true }
+        );
+
+        if(items.length === 0){
+          notify.info('No actions available for this listing.');
+          return;
+        }
+
+        const pick = await uiMenu({ title:'Listing actions', items });
+        if(!pick) return;
+
+        if(pick === 'sold'){
+          const yes = await uiConfirm({
+            title:'Mark as sold',
+            text:'Mark this listing as SOLD?\nThis will remove it from active listings.',
+            confirmText:'Mark sold'
+          });
+          if(!yes) return;
+
+          const rr = await nui('listings:sold', { id: getListingId(l) });
+          if(!rr.ok) { notify.err(rr.data?.error || 'Failed'); return; }
+          notify.ok('Listing marked as sold.');
+          await openDetail(getListingId(l));
+          await refreshSelling();
+          await refreshBrowse();
+        }
+
+        if(pick === 'delete' || pick === 'admindelete'){
+          const yes = await uiConfirm({
+            title:'Delete listing',
+            text:'Delete this listing?\nThis cannot be undone.',
+            confirmText:'Delete',
+            danger:true
+          });
+          if(!yes) return;
+
+          const rr = await nui('listings:delete', { id: getListingId(l) });
+          if(!rr.ok) { notify.err(rr.data?.error || 'Failed'); return; }
+          notify.ok('Listing deleted.');
+          setView('browse');
+          await refreshBrowse();
+          await refreshSelling();
+        }
+      };
+    }
+
+    async function refreshBrowse(){
+      const r = await nui('listings:list', {
+        search: state.filters.search,
+        category: state.filters.category,
+        sort: state.filters.sort,
+        radius_km: Number(state.filters.radiusKm||state.config.defaultRadiusKm||65)
+      });
+
+      if(!r.ok){
+        state.listings = [];
+        renderGrid();
+        return;
+      }
+      state.listings = r.data || [];
+      renderGrid();
+    }
+
+    async function openDetail(id){
+      const lid = Number(id);
+      if(!Number.isFinite(lid) || lid <= 0){
+        console.warn('[marketplace] openDetail invalid id:', id);
+        return;
+      }
+
+      const r = await nui('listings:get', { id: lid });
+      if(!r || !r.ok || !r.data){
+        console.warn('[marketplace] listings:get failed:', r);
+        return;
+      }
+
+      const listing = r.data.listing ?? r.data;
+      if(!listing){
+        console.warn('[marketplace] listings:get returned empty listing:', r);
+        return;
+      }
+
+      if(!listing.id) listing.id = getListingId(listing);
+
+      state.listing = listing;
+      state.detailIndex = 0;
+
+      setView('detail');
+      renderDetail();
+    }
+
+    async function refreshSelling(){
+      const r = await nui('listings:mine', {});
+      state.myListings = (r.ok && r.data) ? r.data : [];
+
+      const wrap = $('#viewSelling');
+      wrap.innerHTML = `
+        <div class="inbox" style="grid-template-columns:1fr">
+          <div class="panel">
+            <div class="panel-head">Your listings</div>
+            <div class="list" style="padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+              ${state.myListings.length ? state.myListings.map(l => `
+                <div class="panel" style="border-radius:14px">
+                  <div style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+                    <div>
+                      <div style="font-weight:900;color:var(--text)">${escapeHtml(l.title)}</div>
+                      <div class="muted tiny" style="margin-top:4px">${fmtMoney(l.price)} • ${escapeHtml(l.status)} • ${escapeHtml(l.listing_type)}</div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                      <button class="btn" data-open="${getListingId(l)}">Open</button>
+                      <button class="btn" data-sold="${getListingId(l)}">Sold</button>
+                      <button class="btn" data-del="${getListingId(l)}"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                  </div>
+                </div>
+              `).join('') : `<div class="empty" style="display:block;padding:18px">No listings yet.</div>`}
+            </div>
+          </div>
+        </div>
+      `;
+
+      $$('#viewSelling [data-open]').forEach(b => b.onclick = () => openDetail(Number(b.dataset.open)));
+
+      $$('#viewSelling [data-sold]').forEach(b => b.onclick = async () => {
+        const id = Number(b.dataset.sold);
+        const rr = await nui('listings:sold', { id });
+        if(!rr.ok) notify.err(rr.data?.error || 'Failed');
+        await refreshSelling();
+        await refreshBrowse();
+      });
+
+      $$('#viewSelling [data-del]').forEach(b => b.onclick = async () => {
+        const id = Number(b.dataset.del);
+        const rr = await nui('listings:delete', { id });
+        if(!rr.ok) notify.err(rr.data?.error || 'Failed');
+        await refreshSelling();
+        await refreshBrowse();
+      });
+    }
+
+    /* ==========================================================
+       ✅ FIXED LIVE CHAT (NO MORE WIPING INPUT)
+       - We DO NOT rebuild the compose/input when messages update
+       - Threads/messages update in-place
+       - Draft saved per-thread
+       ========================================================== */
+
+    function inboxWrap(view){
+      return (view === 'buying') ? $('#viewBuying') : $('#viewInbox');
+    }
+
+    function inboxKey(listing_id, other_discord){
+      return `${Number(listing_id)}:${String(other_discord||'')}`;
+    }
+
+    function ensureInboxShell(view){
+      const wrap = inboxWrap(view);
+      if(!wrap) return null;
+
+      // Already built? Keep it. (This is what stops wiping your typing.)
+      if(wrap.querySelector('.inbox') && wrap.querySelector('#msgInput') && wrap.querySelector('#threadList')){
+        // ensure handlers still set
+        const btnSend = wrap.querySelector('#btnSend');
+        const msgInput = wrap.querySelector('#msgInput');
+        if(btnSend && !btnSend.dataset.bound){
+          btnSend.dataset.bound = '1';
+          btnSend.onclick = () => sendMessageFromUI(view);
+        }
+        if(msgInput && !msgInput.dataset.bound){
+          msgInput.dataset.bound = '1';
+          msgInput.addEventListener('input', () => {
+            if(!state.inbox.active) return;
+            const k = inboxKey(state.inbox.active.listing_id, state.inbox.active.other_discord);
+            state.inbox.drafts[k] = msgInput.value || '';
+          });
+          msgInput.onkeydown = (e) => {
+            if(e.key === 'Enter') sendMessageFromUI(view);
+          };
+        }
+        return wrap;
+      }
+
+      const title = (view === 'buying') ? 'Buying (your chats)' : 'Inbox';
+      wrap.innerHTML = `
+        <div class="inbox">
+          <div class="panel">
+            <div class="panel-head">${escapeHtml(title)}</div>
+            <div class="thread-list" id="threadList"></div>
+          </div>
+          <div class="panel chat">
+            <div class="panel-head" id="chatHead">Select a conversation</div>
+            <div class="messages" id="msgList"></div>
+            <div class="compose">
+              <input id="msgInput" placeholder="Send a message" />
+              <button class="primary" id="btnSend"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const btnSend = wrap.querySelector('#btnSend');
+      const msgInput = wrap.querySelector('#msgInput');
+
+      btnSend.dataset.bound = '1';
+      btnSend.onclick = () => sendMessageFromUI(view);
+
+      msgInput.dataset.bound = '1';
+      msgInput.addEventListener('input', () => {
+        if(!state.inbox.active) return;
+        const k = inboxKey(state.inbox.active.listing_id, state.inbox.active.other_discord);
+        state.inbox.drafts[k] = msgInput.value || '';
+      });
+      msgInput.onkeydown = (e) => {
+        if(e.key === 'Enter') sendMessageFromUI(view);
+      };
+
+      return wrap;
+    }
+
+    function setActiveThreadStyles(view){
+      const wrap = inboxWrap(view);
+      if(!wrap) return;
+      const activeK = state.inbox.active ? inboxKey(state.inbox.active.listing_id, state.inbox.active.other_discord) : '';
+      wrap.querySelectorAll('.thread').forEach(el => {
+        el.classList.toggle('active', el.dataset.k === activeK);
+      });
+    }
+
+    function renderThreadList(view){
+      const wrap = ensureInboxShell(view);
+      if(!wrap) return;
+
+      const tl = wrap.querySelector('#threadList');
+      if(!tl) return;
+
+      let threads = Array.isArray(state.inbox.threads) ? [...state.inbox.threads] : [];
+
+      // show active even if not in list yet (draft convo)
+      if(state.inbox.active){
+        const ak = inboxKey(state.inbox.active.listing_id, state.inbox.active.other_discord);
+        const exists = threads.some(t => inboxKey(t.listing_id, t.other_discord) === ak);
+        if(!exists){
+          const lid = Number(state.inbox.active.listing_id);
+          const titleGuess =
+            (state.listing && getListingId(state.listing) === lid && state.listing.title)
+              ? state.listing.title
+              : (`Listing #${lid}`);
+          threads.unshift({
+            listing_id: lid,
+            other_discord: state.inbox.active.other_discord,
+            listing_title: titleGuess,
+            last_message: 'New conversation'
+          });
+        }
+      }
+
+      if(!threads.length){
+        tl.innerHTML = `<div class="empty" style="display:block;padding:18px">No messages yet.</div>`;
+        return;
+      }
+
+      tl.innerHTML = '';
+      threads.forEach(t => {
+        const div = document.createElement('div');
+        div.className = 'thread';
+        div.dataset.listingId = String(t.listing_id);
+        div.dataset.otherDiscord = String(t.other_discord);
+        div.dataset.k = inboxKey(t.listing_id, t.other_discord);
+        div.innerHTML = `
+          <div class="t1">${escapeHtml(t.listing_title || ('Listing #' + t.listing_id))}</div>
+          <div class="t2">${escapeHtml(t.last_message || '')}</div>
+        `;
+        div.onclick = () => openThread(t.listing_id, t.other_discord, view, { refreshListOnOpen:false });
+        tl.appendChild(div);
+      });
+
+      setActiveThreadStyles(view);
+    }
+
+    function renderMessages(view){
+      const wrap = ensureInboxShell(view);
+      if(!wrap) return;
+
+      const msgEl = wrap.querySelector('#msgList');
+      if(!msgEl) return;
+
+      msgEl.innerHTML = '';
+      (state.inbox.messages || []).forEach(m => {
+        const div = document.createElement('div');
+        const isMe = String(m.sender_discord) === String(state.me.discord);
+        div.className = 'bubble' + (isMe ? ' me' : '');
+        div.innerHTML = `${escapeHtml(m.message)}<span class="time">${escapeHtml(relTime(m.created_at))}</span>`;
+        msgEl.appendChild(div);
+      });
+      msgEl.scrollTop = msgEl.scrollHeight;
+    }
+
+    function restoreDraftToInput(view){
+      const wrap = inboxWrap(view);
+      if(!wrap) return;
+      const inp = wrap.querySelector('#msgInput');
+      if(!inp) return;
+
+      if(!state.inbox.active) return;
+      const k = inboxKey(state.inbox.active.listing_id, state.inbox.active.other_discord);
+      const draft = state.inbox.drafts[k] || '';
+
+      // only restore if user isn't actively typing different text
+      // (prevents annoying overwrites)
+      if(document.activeElement === inp && inp.value !== draft){
+        // don't overwrite if user is actively typing
+        return;
+      }
+      if(inp.value !== draft) inp.value = draft;
+    }
+
+    async function refreshInbox(view, opts = {}){
+      ensureInboxShell(view);
+
+      const r = await nui('inbox:list', {});
+      const threads = (r.ok && r.data) ? r.data : [];
+
+      if(view === 'buying'){
+        state.inbox.threads = threads.filter(t => String(t.buyer_discord) === String(state.me.discord));
+      } else {
+        state.inbox.threads = threads;
+      }
+
+      renderThreadList(view);
+
+      if(state.inbox.active && opts.openActive !== false){
+        await openThread(state.inbox.active.listing_id, state.inbox.active.other_discord, view, { silent: true, refreshListOnOpen:false });
+      }
+    }
+
+    async function openThread(listing_id, other_discord, view, opts = {}){
+      const lid = Number(listing_id);
+      if(!Number.isFinite(lid) || lid <= 0) return;
+
+      ensureInboxShell(view);
+
+      const wrap = inboxWrap(view);
+      if(!wrap) return;
+
+      const headEl = wrap.querySelector('#chatHead');
+      const inp = wrap.querySelector('#msgInput');
+
+      // save previous draft (whatever is in the input right now)
+      if(state.inbox.active && inp){
+        const prevK = inboxKey(state.inbox.active.listing_id, state.inbox.active.other_discord);
+        state.inbox.drafts[prevK] = inp.value || '';
+      }
+
+      state.inbox.active = { listing_id: lid, other_discord: String(other_discord||'') };
+
+      setActiveThreadStyles(view);
+
+      // set title guess immediately
+      const titleGuess = state.listing?.title || state.inbox.activeMeta?.listing_title || (`Listing #${lid}`);
+      if(headEl) headEl.textContent = `${titleGuess} — Chat`;
+
+      // restore draft for this thread (do not overwrite active typing)
+      restoreDraftToInput(view);
+
+      const r = await nui('inbox:thread', { listing_id: lid, other_discord: String(other_discord||'') });
+
+      if(!r || !r.ok){
+        state.inbox.messages = [];
+        renderMessages(view);
+        if(!opts.silent) console.warn('[marketplace] inbox:thread failed:', r);
+        return;
+      }
+
+      state.inbox.activeMeta = null;
+
+      const listingTitle = r.data?.listing?.title || titleGuess;
+      if(headEl) headEl.textContent = `${listingTitle} — Chat`;
+
+      state.inbox.messages = r.data.messages || [];
+      renderMessages(view);
+
+      // keep draft intact after re-rendering messages
+      restoreDraftToInput(view);
+
+      if(opts.refreshListOnOpen !== false){
+        renderThreadList(view);
+      }
+    }
+
+    async function sendMessageFromUI(view){
+      const wrap = inboxWrap(view);
+      if(!wrap) return;
+
+      const inp = wrap.querySelector('#msgInput');
+      const text = String(inp?.value || '').trim();
+      if(!text) return;
+
+      if(!state.inbox.active){
+        notify.warn('Select a conversation');
+        return;
+      }
+
+      const k = inboxKey(state.inbox.active.listing_id, state.inbox.active.other_discord);
+
+      // keep a copy in case send fails
+      const keep = text;
+
+      // optimistic draft clear ONLY if send succeeds; for now, keep it in drafts
+      state.inbox.drafts[k] = inp.value || '';
+
+      const r = await nui('inbox:send', {
+        listing_id: state.inbox.active.listing_id,
+        target_discord: state.inbox.active.other_discord,
+        message: text
+      });
+
+      if(!r.ok){
+        notify.err(r.data?.error || 'Failed to send');
+        // restore input
+        if(inp) inp.value = state.inbox.drafts[k] || keep;
+        return;
+      }
+
+      // sent: clear draft + input
+      state.inbox.drafts[k] = '';
+      if(inp) inp.value = '';
+
+      // refresh messages + thread previews
+      await openThread(state.inbox.active.listing_id, state.inbox.active.other_discord, view, { silent:true, refreshListOnOpen:false });
+      await refreshInbox(view, { openActive:false });
+    }
+
+    function stopInboxPoll(){
+      if(state.inbox.poll.timer){
+        clearInterval(state.inbox.poll.timer);
+        state.inbox.poll.timer = null;
+      }
+      state.inbox.poll.view = null;
+      state.inbox.poll.lastSig = '';
+    }
+
+    function startInboxPoll(view){
+      stopInboxPoll();
+      state.inbox.poll.view = view;
+
+      const ms = Number(state.config.chatPollMs || 1500);
+      state.inbox.poll.timer = setInterval(async () => {
+        if(!state.open) return;
+        if(state.view !== 'inbox' && state.view !== 'buying') return;
+        if(state.view !== view) return;
+
+        // update thread list + active messages (no wiping input)
+        await refreshInbox(view, { openActive:false });
+
+        if(state.inbox.active){
+          const lid = state.inbox.active.listing_id;
+          const od  = state.inbox.active.other_discord;
+          const r = await nui('inbox:thread', { listing_id: lid, other_discord: od });
+          if(r?.ok){
+            const msgs = r.data?.messages || [];
+            const last = msgs[msgs.length-1];
+            const sig = last ? `${last.sender_discord}|${last.created_at}|${last.message}` : '';
+            if(sig && sig !== state.inbox.poll.lastSig){
+              state.inbox.poll.lastSig = sig;
+              state.inbox.messages = msgs;
+              renderMessages(view);
+              restoreDraftToInput(view);
+            }
+          }
+        }
+      }, Math.max(800, ms));
+    }
+
+    async function openThreadFromListing(listing){
+      if(!listing) return;
+
+      const listingId = getListingId(listing);
+      if(!listingId){
+        console.warn('[marketplace] openThreadFromListing: missing listing id', listing);
+        return;
+      }
+
+      const other = getSellerDiscord(listing);
+      if(!other){
+        alert('Seller info missing for this listing.');
+        return;
+      }
+
+      if(state.me.discord && String(other) === String(state.me.discord)){
+        setView('selling');
+        return;
+      }
+
+      state.inbox.active = { listing_id: listingId, other_discord: other };
+      state.inbox.activeMeta = { listing_title: listing.title || (`Listing #${listingId}`) };
+
+      setView('inbox', { refresh:false });
+
+      ensureInboxShell('inbox');
+      await refreshInbox('inbox', { openActive:true });
+    }
+
+    /* ===================== Create listing modal ===================== */
+
+    function openModal(show){
+      state.create.open = !!show;
+      $('#modalBackdrop').classList.toggle('hidden', !show);
+      $('#modal').classList.toggle('hidden', !show);
+
+      if(show){
+        ensureCreateDropdowns();
+        state.create.photos = [];
+        $('#fTitle').value = '';
+        $('#fDesc').value = '';
+        $('#fPrice').value = '';
+        $('#fSource').value = '';
+        $('#fCategory').value = state.filters.category !== 'all' ? state.filters.category : 'classifieds';
+        $('#fCondition').value = state.config.conditions?.[2] || 'Used - Good';
+        renderTypeTabs();
+        renderCreateSource();
+        renderPhotoStrip();
+      }
+    }
+
+    async function loadSources(){
+      const v = await nui('sources:vehicles', {});
+      if(v.ok) state.create.sources.vehicles = v.data || [];
+
+      const h = await nui('sources:houses', {});
+      if(h.ok){
+        state.create.sources.houses = h.data?.houses || [];
+        state.create.sources.rentals = h.data?.rentals || [];
+      }
+    }
+
+    async function createListing(){
+      ensureCreateDropdowns();
+
+      const body = {
+        listing_type: state.create.type,
+        category: $('#fCategory').value || 'classifieds',
+        condition: $('#fCondition').value || 'Used - Good',
+        title: $('#fTitle').value || '',
+        description: $('#fDesc').value || '',
+        price: Number($('#fPrice').value || 0),
+        images: state.create.photos.slice(0, state.config.maxImages || 4),
+        location_label: $('#locationLabel').textContent || 'Los Santos',
+      };
+
+      if(state.create.type !== 'item'){
+        body.source_ref = $('#fSource').value || '';
+        if(!body.source_ref){
+          alert('Select a source for this listing type.');
+          return;
+        }
+      }
+
+      if(!String(body.title||'').trim()){
+        alert('Title is required');
+        return;
+      }
+
+      // Keep payload safe (prevents huge base64)
+      const MAX_BYTES = 200 * 1024;
+      body.images = (body.images || []).filter(x => typeof x === 'string' && dataUrlBytes(x) <= MAX_BYTES);
+
+      const r = await nui('listings:create', body);
+      if(!r.ok){
+        alert(r.data?.error || 'Failed to create');
+        return;
+      }
+
+      openModal(false);
+      await refreshBrowse();
+      await refreshSelling();
+    }
+
+    function bindUI(){
+      // top actions
+      $('#btnClose').onclick = () => closeNui();
+      $('#btnHome').onclick = () => setView('browse');
+      $('#btnInbox').onclick = () => setView('inbox');
+      $('#btnSell').onclick = () => setView('selling');
+
+      // nav
+      $$('.navitem').forEach(b => b.onclick = () => setView(b.dataset.route));
+
+      // search/sort/radius
+      $('#searchInput').oninput = (e) => {
+        state.filters.search = e.target.value || '';
+        if(state.view === 'browse') refreshBrowse();
+      };
+
+      $('#sortSelect').onchange = (e) => {
+        state.filters.sort = e.target.value;
+        if(state.view === 'browse') refreshBrowse();
+      };
+
+      $('#radiusInput').onchange = (e) => {
+        let v = Number(e.target.value || state.config.defaultRadiusKm || 65);
+        v = Math.max(1, Math.min(state.config.maxRadiusKm || 250, v));
+        state.filters.radiusKm = v;
+        e.target.value = v;
+        if(state.view === 'browse') refreshBrowse();
+      };
+
+      // create listing
+      $('#btnCreate').onclick = () => {
+        openModal(true);
+        loadSources().then(() => renderCreateSource()).catch(() => {});
+      };
+      $('#btnModalClose').onclick = () => openModal(false);
+      $('#modalBackdrop').onclick = () => openModal(false);
+
+      // screenshot photos (with compression)
+      $('#btnAddPhoto').onclick = async () => {
+        if(!state.config.screenshotsEnabled){
+          alert('Screenshot capture is disabled on this server.');
+          return;
+        }
+        if(state.create.photos.length >= (state.config.maxImages || 4)){
+          alert('Max photos reached');
+          return;
+        }
+
+        const r = await nuiAddPhoto();
+        if(!r.ok){
+          alert(r.error || r.data?.error || 'Screenshot failed');
+          return;
+        }
+
+        let img = r.data?.image;
+        if(!img) return;
+
+        const MAX_BYTES = 200 * 1024; // 200KB target per photo
+        try {
+          img = await compressDataUrl(img, 900, 900, 0.65);
+          if (dataUrlBytes(img) > MAX_BYTES) {
+            img = await compressDataUrl(img, 640, 640, 0.55);
+          }
+        } catch(e){}
+
+        if (dataUrlBytes(img) > MAX_BYTES) {
+          alert('Photo too large. Try again or lower your resolution/graphics.');
+          return;
+        }
+
+        state.create.photos.push(img);
+        renderPhotoStrip();
+      };
+
+      $('#btnCreateSubmit').onclick = () => createListing();
+
+      // settings open/close
+      const openSettingsUI = () => openSettings(true);
+      $('#btnSidebarSettings').onclick = openSettingsUI;
+      $('#btnSettingsTop').onclick = openSettingsUI;
+
+      $('#btnSettingsClose').onclick = () => openSettings(false);
+      $('#settingsBackdrop').onclick = () => openSettings(false);
+
+      // settings: theme / opacity
+      $('#themeSelect').onchange = (e) => {
+        const theme = e.target.value === 'dark' ? 'dark' : 'light';
+        applyTheme(theme);
+        const prefs = loadPrefs();
+        prefs.theme = theme;
+        savePrefs(prefs);
+      };
+
+      $('#opacityRange').oninput = (e) => {
+        applyOpacity(e.target.value);
+      };
+      $('#opacityRange').onchange = (e) => {
+        const prefs = loadPrefs();
+        prefs.opacity = Number(e.target.value || 96);
+        savePrefs(prefs);
+      };
+
+      $('#btnResetWindow').onclick = () => {
+        resetWindow();
+      };
+
+      $('#btnSettingsSave').onclick = () => {
+        const prefs = loadPrefs();
+        prefs.theme = $('#themeSelect').value;
+        prefs.opacity = Number($('#opacityRange').value || 96);
+        savePrefs(prefs);
+        persistWindowRect();
+        openSettings(false);
+      };
+
+      window.addEventListener('keydown', (e) => {
+        if(!state.open) return;
+        if(e.key === 'Escape') closeNui();
+      });
+    }
+
+    function closeNui(){
+      fetch(`https://${RES}/close`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:'{}'
+      });
+      showApp(false);
+    }
+
+    function applyBootstrap(data){
+      state.me = data.me || state.me;
+      state.config = { ...state.config, ...(data.config || {}) };
+
+      $('#locationLabel').textContent = state.config.defaultLocationLabel || $('#locationLabel').textContent;
+      $('#meLabel').textContent = `Logged in as ${state.me.name || 'Player'}`;
+
+      $('#sortSelect').value = state.config.defaultSort || 'newest';
+      state.filters.sort = $('#sortSelect').value;
+
+      $('#radiusInput').value = state.config.defaultRadiusKm || 65;
+      state.filters.radiusKm = Number($('#radiusInput').value);
+
+      const catSel = $('#fCategory');
+      catSel.innerHTML = (state.config.categories||[])
+        .filter(c=>c.id!=='all')
+        .map(c=>`<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+
+      const condSel = $('#fCondition');
+      condSel.innerHTML = (state.config.conditions||[])
+        .map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+
+      renderCategories();
+      renderTypeTabs();
+    }
+
+    // Receive messages from game
+    window.addEventListener('message', (event) => {
+      const msg = event.data || {};
+
+      if(msg.type === 'open'){
+        showApp(true);
+        setView('browse');
+      }
+
+      if(msg.type === 'close'){
+        showApp(false);
+      }
+
+      if(msg.type === 'bootstrap'){
+        if(msg.ok) applyBootstrap(msg.data);
+        refreshBrowse();
+      }
+
+      if(msg.type === 'push'){
+        if(msg.event === 'listingCreated'){
+          if(state.view === 'browse') refreshBrowse();
+          if(state.view === 'selling') refreshSelling();
+        }
+
+        if(msg.event === 'listingDeleted' || msg.event === 'listingSold'){
+          if(state.view === 'browse') refreshBrowse();
+          if(state.view === 'selling') refreshSelling();
+          if(state.view === 'detail' && state.listing && getListingId(state.listing) === msg.payload?.id){
+            setView('browse');
+          }
+        }
+
+        // ✅ FIX: this no longer nukes your input because inbox updates are in-place
+        if(msg.event === 'messageNew'){
+          if(state.view === 'inbox' || state.view === 'buying'){
+            refreshInbox(state.view, { openActive:true });
+          }
+        }
+      }
+    });
+
+    // Init
+    bindUI();
+    initPrefs();
+    initDrag();
+    initResize();
+  </script>
+</body>
+</html>
