@@ -1,5 +1,3 @@
-// File: no-comments-pasted.lua
-
 local RESOURCE = GetCurrentResourceName()
 
 Config = Config or {}
