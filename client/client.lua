@@ -7,7 +7,7 @@ local fw = exports['Az-Framework']
 
 local uiOpen = false
 local reqSeq = 0
-local pending = {}
+local pending = {} 
 
 local function dprint(...)
   if not DEBUG then return end
@@ -18,29 +18,44 @@ local function nui(msg)
   SendNUIMessage(msg)
 end
 
+local function isInputBusy()
+  if IsPauseMenuActive() then return true end
+  if IsNuiFocused and IsNuiFocused() then return true end
+
+  if LocalPlayer and LocalPlayer.state then
+    if LocalPlayer.state.azChatOpen == true then return true end
+    if LocalPlayer.state.azUiBusy == true then return true end
+  end
+
+  return false
+end
+
 local function setUI(state)
   uiOpen = state and true or false
 
   SetNuiFocus(uiOpen, uiOpen)
+  if SetNuiFocusKeepInput then SetNuiFocusKeepInput(false) end
 
-  SetNuiFocusKeepInput(false)
-
+  if LocalPlayer and LocalPlayer.state then
+    LocalPlayer.state:set('azMarketplaceOpen', uiOpen, false)
+    LocalPlayer.state:set('azUiBusy', uiOpen, false)
+  end
 end
 
 CreateThread(function()
   while true do
     if uiOpen then
-      DisableControlAction(0, 24, true)
-      DisableControlAction(0, 25, true)
-      DisableControlAction(0, 257, true)
-      DisableControlAction(0, 140, true)
-      DisableControlAction(0, 141, true)
-      DisableControlAction(0, 142, true)
-      DisableControlAction(0, 143, true)
-      DisableControlAction(0, 263, true)
-      DisableControlAction(0, 21, true)
-      DisableControlAction(0, 22, true)
-      DisableControlAction(0, 37, true)
+      DisableControlAction(0, 24, true)  
+      DisableControlAction(0, 25, true)  
+      DisableControlAction(0, 257, true) 
+      DisableControlAction(0, 140, true) 
+      DisableControlAction(0, 141, true) 
+      DisableControlAction(0, 142, true) 
+      DisableControlAction(0, 143, true) 
+      DisableControlAction(0, 263, true) 
+      DisableControlAction(0, 21, true)  
+      DisableControlAction(0, 22, true)  
+      DisableControlAction(0, 37, true)  
       DisablePlayerFiring(PlayerId(), true)
       Wait(0)
     else
@@ -48,6 +63,9 @@ CreateThread(function()
     end
   end
 end)
+
+
+
 
 local function rpc(action, data, timeoutMs)
   reqSeq = reqSeq + 1
@@ -59,6 +77,8 @@ local function rpc(action, data, timeoutMs)
   end
   TriggerServerEvent('az_marketplace:sv:request', id, action, data or {})
 
+  
+  
   timeoutMs = tonumber(timeoutMs) or (Config and Config.NuiTimeoutMs) or 15000
   SetTimeout(timeoutMs, function()
     if pending[id] == p then
@@ -82,10 +102,14 @@ RegisterNetEvent('az_marketplace:cl:response', function(id, ok, payload)
   p:resolve({ ok = ok, data = payload })
 end)
 
+
 RegisterNetEvent('az_marketplace:cl:push', function(eventName, payload)
   if not uiOpen then return end
   nui({ type = 'push', event = eventName, payload = payload })
 end)
+
+
+
 
 local function captureScreenshot()
   if not (Config.Screenshot and Config.Screenshot.Enabled) then
@@ -99,7 +123,7 @@ local function captureScreenshot()
   local p = promise.new()
 
   exports['screenshot-basic']:requestScreenshot(function(data)
-
+    
     if not data or data == '' then
       p:resolve(nil)
       return
@@ -123,17 +147,23 @@ local function captureScreenshot()
   return out, nil
 end
 
+
+
+
 local function openMarket()
   if uiOpen then return end
+  if isInputBusy() then return end
 
   setUI(true)
   nui({ type = 'open' })
 
+  
   local res = rpc('bootstrap', {})
   if res.ok then
     nui({ type = 'bootstrap', ok = true, data = res.data })
   else
-
+    
+    
     nui({ type = 'bootstrap', ok = true, data = {
       me = {
         discord = nil,
@@ -155,6 +185,7 @@ local function openMarket()
       }
     }})
 
+    
     nui({ type = 'push', event = 'notify', payload = { type = 'error', title = 'Marketplace', message = (res.data and res.data.error) or 'Server bootstrap failed' } })
   end
 end
@@ -170,6 +201,9 @@ RegisterCommand(Config.Command or 'market', function()
 end)
 
 RegisterKeyMapping(Config.Command or 'market', 'Open Marketplace', 'keyboard', Config.Keybind or 'L')
+
+
+
 
 RegisterNUICallback('close', function(_, cb)
   closeMarket()
@@ -198,11 +232,16 @@ RegisterNUICallback('addPhoto', function(_, cb)
   cb({ ok = true, data = { image = shot } })
 end)
 
+
 AddEventHandler('onResourceStop', function(res)
   if res ~= RESOURCE then return end
   if uiOpen then
     SetNuiFocus(false, false)
-    SetNuiFocusKeepInput(false)
+    if SetNuiFocusKeepInput then SetNuiFocusKeepInput(false) end
     TriggerScreenblurFadeOut(0)
+  end
+  if LocalPlayer and LocalPlayer.state then
+    LocalPlayer.state:set('azMarketplaceOpen', false, false)
+    LocalPlayer.state:set('azUiBusy', false, false)
   end
 end)

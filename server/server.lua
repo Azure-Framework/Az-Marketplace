@@ -10,9 +10,12 @@ local function dprint(...)
   print(('^3[%s:server]^7'):format(RESOURCE), ...)
 end
 
+
 local function eprint(...)
   print(('^1[%s:server]^7'):format(RESOURCE), ...)
 end
+
+
 
 local function fwCall(method, ...)
   if not fw then return nil end
@@ -23,14 +26,19 @@ local function fwCall(method, ...)
   return nil
 end
 
-local function hasOx()
 
+
+
+local function hasOx()
+  
   local s = GetResourceState('oxmysql')
   if s ~= 'started' and s ~= 'starting' then
     return false
   end
   return exports ~= nil and exports.oxmysql ~= nil
 end
+
+
 
 local function oxTimeoutMs()
   return tonumber(Config and Config.DB and Config.DB.TimeoutMs) or 6000
@@ -70,7 +78,7 @@ end
 local function awaitInsert(query, params)
   params = params or {}
   return awaitWithTimeout(function(resolve)
-
+    
     if exports.oxmysql.insert then
       exports.oxmysql:insert(query, params, function(insertId)
         resolve(insertId)
@@ -78,6 +86,7 @@ local function awaitInsert(query, params)
       return
     end
 
+    
     exports.oxmysql:query(query, params, function(res)
       resolve(res)
     end)
@@ -99,8 +108,10 @@ local function awaitUpdate(query, params)
   end, 'update')
 end
 
-local function awaitExecute(query, params)
 
+
+local function awaitExecute(query, params)
+  
   return awaitQuery(query, params)
 end
 
@@ -124,6 +135,7 @@ local function clampInt(v, a, b)
   return math.floor(v)
 end
 
+
 local function isDbTimeout(res)
   return type(res) == 'table' and res.__timeout == true
 end
@@ -138,12 +150,21 @@ local function strTrim(s)
   return s
 end
 
+
+
+
+
 local T_LIST = (Config.DB and Config.DB.ListingsTable) or 'az_marketplace_listings'
 local T_MSG  = (Config.DB and Config.DB.MessagesTable) or 'az_marketplace_messages'
 local T_VEH  = (Config.DB and Config.DB.VehiclesTable) or 'user_vehicles'
 local T_HOU  = (Config.DB and Config.DB.HousesTable) or 'az_houses'
 local T_RENT = (Config.DB and Config.DB.RentalsTable) or 'az_house_rentals'
 local H_OWNER_COL = (Config.DB and Config.DB.HouseOwnerColumn) or 'owner_identifier'
+
+
+
+
+
 
 local function columnExists(tableName, columnName)
   local rows = awaitQuery([[
@@ -152,6 +173,7 @@ local function columnExists(tableName, columnName)
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
   ]], { tableName, columnName })
 
+  
   if type(rows) == 'table' and (rows.__timeout or rows.__error) then
     return false
   end
@@ -171,6 +193,7 @@ local function ensureListingSchema()
     end
   end
 
+  
   addCol('listing_type', "`listing_type` varchar(16) NOT NULL DEFAULT 'item'")
   addCol('currency', "`currency` varchar(8) NOT NULL DEFAULT '$'")
   addCol('condition', "`condition` varchar(32) NOT NULL DEFAULT 'Used - Good'")
@@ -187,8 +210,9 @@ local function ensureListingSchema()
   addCol('source_json', "`source_json` longtext DEFAULT NULL")
   addCol('status', "`status` varchar(16) NOT NULL DEFAULT 'active'")
 
+  
   if columnExists(tbl, 'owner') and columnExists(tbl, 'seller_discord') then
-
+    
     awaitExecute(("UPDATE `%s` SET seller_discord = owner " ..
       "WHERE (seller_discord IS NULL OR seller_discord = '') " ..
       "AND owner IS NOT NULL AND owner <> ''"):format(tbl), {})
@@ -201,12 +225,16 @@ local function ensureListingSchema()
   end
 
   if columnExists(tbl, 'image') and columnExists(tbl, 'images') then
-
+    
     awaitExecute(("UPDATE `%s` SET images = CONCAT('[', JSON_QUOTE(image), ']') " ..
       "WHERE (images IS NULL OR images = '' OR images = '[]') " ..
       "AND image IS NOT NULL AND image <> ''"):format(tbl), {})
   end
 end
+
+
+
+
 
 local T_LIST = (Config.DB and Config.DB.ListingsTable) or 'az_marketplace_listings'
 local T_MSG  = (Config.DB and Config.DB.MessagesTable) or 'az_marketplace_messages'
@@ -268,6 +296,7 @@ local function ensureTables()
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   ]]):format(T_MSG))
 
+  
   ensureListingSchema()
 
   dprint('Tables ensured:', T_LIST, T_MSG)
@@ -277,6 +306,18 @@ CreateThread(function()
   Wait(1000)
   ensureTables()
 end)
+
+
+
+
+
+
+
+
+
+
+
+
 
 local function getCharId(src) end
 local function getDiscordId(src) end
@@ -291,7 +332,7 @@ getCharId = function(src)
 end
 
 getDiscordId = function(src)
-
+  
   for _, id in ipairs(GetPlayerIdentifiers(src)) do
     if type(id) == 'string' and id:sub(1, 8) == 'discord:' then
       local did = id:sub(9):gsub('%s+', '')
@@ -299,6 +340,7 @@ getDiscordId = function(src)
     end
   end
 
+  
   local did
   local ok, v = pcall(function() return fw:getDiscordID(src) end)
   if ok and v then
@@ -306,11 +348,12 @@ getDiscordId = function(src)
     if did ~= '' then return did end
   end
 
+  
   return ''
 end
 
 getCharName = function(src)
-
+  
   if exports['Az-Framework'] and exports['Az-Framework'].GetPlayerCharacterNameSync then
     local ok, name, err = pcall(function()
       local n, e = exports['Az-Framework']:GetPlayerCharacterNameSync(src)
@@ -324,6 +367,7 @@ getCharName = function(src)
     end
   end
 
+  
   if fw and type(fw.GetPlayerCharacterName) == 'function' then
     local p = promise.new()
     local done = false
@@ -359,6 +403,7 @@ getCharName = function(src)
   return GetPlayerName(src) or 'Unknown'
 end
 
+
 local fw = nil
 
 local function getFw()
@@ -369,6 +414,8 @@ local function getFw()
   return fw
 end
 
+
+
 local function isAdmin(src, cb)
   local afw = getFw()
   if not afw or not afw.isAdmin then
@@ -376,10 +423,12 @@ local function isAdmin(src, cb)
     return false
   end
 
+  
   if cb then
     return afw:isAdmin(src, cb)
   end
 
+  
   local done, result = false, false
   afw:isAdmin(src, function(ok)
     result = (ok == true)
@@ -395,13 +444,14 @@ local function isAdmin(src, cb)
   return result
 end
 
+
 local function playerIdentifiersForHouse(src)
   local did = getDiscordId(src)
   local cid = getCharId(src)
   local list = {}
   if did and did ~= '' then
     list[#list+1] = did
-
+    
     if not did:find(':') then
       list[#list+1] = 'discord:' .. did
     elseif did:find('^discord:') == 1 then
@@ -413,6 +463,9 @@ local function playerIdentifiersForHouse(src)
   end
   return list
 end
+
+
+
 
 local function getMyVehicles(src)
   local did = getDiscordId(src)
@@ -434,6 +487,7 @@ local function getMyHousesAndRentals(src)
   local vals = playerIdentifiersForHouse(src)
   if #vals == 0 then return { houses = {}, rentals = {} } end
 
+  
   local q = ('SELECT id, name, label, price, interior, locked, %s as owner_identifier FROM `%s` WHERE %s IN (%s) ORDER BY id DESC LIMIT 200')
     :format(H_OWNER_COL, T_HOU, H_OWNER_COL, table.concat((function()
       local t = {}
@@ -460,6 +514,9 @@ local function getMyHousesAndRentals(src)
   return { houses = rows, rentals = rentals }
 end
 
+
+
+
 local function normalizeImages(images)
   if type(images) ~= 'table' then return {} end
   local out = {}
@@ -469,7 +526,7 @@ local function normalizeImages(images)
   for _, img in ipairs(images) do
     if #out >= max then break end
     if type(img) == 'string' and img:find('^data:image') then
-
+      
       if #img <= (maxBytes * 1.6) then
         out[#out+1] = img
       end
@@ -501,6 +558,7 @@ end
 local function listListings(src, filters)
   filters = filters or {}
 
+  
   local ped = GetPlayerPed(src)
   local pcoords = ped and GetEntityCoords(ped) or vector3(0, 0, 0)
   local radiusKm = tonumber(filters.radiusKm or filters.radius_km or filters.radius or Config.DefaultRadiusKm or 65) or 65
@@ -549,7 +607,7 @@ local function listListings(src, filters)
   local out = {}
 
   for _, r in ipairs(rows) do
-
+    
     local lx = tonumber(r.location_x) or 0
     local ly = tonumber(r.location_y) or 0
     local dx = (lx - (pcoords.x or 0))
@@ -589,11 +647,13 @@ local function getListing(id, viewerDiscord)
     location = { x = tonumber(row.location_x) or 0, y = tonumber(row.location_y) or 0, z = tonumber(row.location_z) or 0 },
     location_label = row.location_label or '',
 
+    
     seller_discord = sellerDiscord,
     seller_charid = row.seller_charid,
     seller_name = row.seller_name or 'Seller',
     is_me = isMe,
 
+    
     seller = {
       discord = sellerDiscord,
       charid = row.seller_charid,
@@ -611,6 +671,7 @@ end
 local function createListing(src, data)
   data = data or {}
 
+  
   eprint('createListing:start', 'src='..tostring(src))
 
   local did = getDiscordId(src)
@@ -652,6 +713,7 @@ local function createListing(src, data)
   local sourceRef = nil
   local source = {}
 
+  
 if ltype == 'vehicle' then
   local vehId = tonumber(data.source_ref or data.vehicle_id)
   if not vehId then return false, 'Missing vehicle id' end
@@ -673,12 +735,14 @@ if ltype == 'vehicle' then
     if r then
       okOwn = true
       source = { vehicle_id = tonumber(r.id), plate = tostring(r.plate), model = tostring(r.model) }
-      sourceRef = tostring(r.plate)
+      sourceRef = tostring(r.plate) 
     end
   end
 
+
   if not okOwn then return false, 'You do not own that vehicle' end
   sourceRef = plate
+
 
   elseif ltype == 'house' then
     local houseId = tonumber(data.source_ref or data.house_id)
@@ -787,10 +851,11 @@ if ltype == 'vehicle' then
   if type(ins) == 'number' then newId = ins end
   if type(ins) == 'table' and ins.insertId then newId = ins.insertId end
 
+  
   newId = tonumber(newId) or tonumber(ins and ins.insertId) or nil
 
   if not newId then
-
+    
     local r = awaitQuery('SELECT LAST_INSERT_ID() as id', {})
     newId = r and tonumber(r[1] and r[1].id)
   end
@@ -802,6 +867,7 @@ if ltype == 'vehicle' then
 
   eprint('createListing:ok', 'id='..tostring(newId))
 
+  
   TriggerClientEvent('az_marketplace:cl:push', -1, 'listingCreated', { id = newId })
 
   return true, { id = newId }
@@ -817,7 +883,7 @@ local function deleteListing(src, listingId)
   local row = getListing(listingId)
   if not row then return false, 'Not found' end
 
-local allowAdmin = (Config.AdminCanModerate ~= false)
+local allowAdmin = (Config.AdminCanModerate ~= false) 
 local admin = (allowAdmin and isAdmin(src)) == true
 
 if row.seller.discord ~= did and not admin then
@@ -839,7 +905,7 @@ local function markSold(src, listingId)
   local row = getListing(listingId)
   if not row then return false, 'Not found' end
 
-local allowAdmin = (Config.AdminCanModerate ~= false)
+local allowAdmin = (Config.AdminCanModerate ~= false) 
 local admin = (allowAdmin and isAdmin(src)) == true
 
 if row.seller.discord ~= did and not admin then
@@ -861,8 +927,11 @@ local function listMyListings(src)
   return out
 end
 
-local function sendPushToDiscord(discordId, eventName, payload)
 
+
+
+local function sendPushToDiscord(discordId, eventName, payload)
+  
   for _, pid in ipairs(GetPlayers()) do
     local src = tonumber(pid)
     if src then
@@ -878,6 +947,7 @@ local function inboxList(src)
   local did = getDiscordId(src)
   if did == '' then return {} end
 
+  
   local q = ([[
     SELECT
       m.listing_id,
@@ -900,6 +970,7 @@ local function inboxList(src)
     local buyer  = tostring(r.buyer_discord)
     local other  = (seller == did) and buyer or seller
 
+    
     local last = awaitQuery(('SELECT message, sender_discord, created_at FROM `%s` WHERE id = ? LIMIT 1'):format(T_MSG), { tonumber(r.last_id) })
     local lastRow = last and last[1]
 
@@ -944,12 +1015,14 @@ local function inboxThread(src, listingId, otherDiscord)
   otherDiscord = tostring(otherDiscord or '')
   if otherDiscord == '' then return false, 'Missing other user' end
 
+  
   local listing = getListing(listingId)
   if not listing then return false, 'Listing not found' end
 
   local seller = listing.seller.discord
   local buyer  = (seller == did) and otherDiscord or did
 
+  
   if not ((did == seller and otherDiscord == buyer) or (did == buyer and otherDiscord == seller)) then
     return false, 'Not allowed'
   end
@@ -987,6 +1060,8 @@ local function inboxSend(src, listingId, message)
   local seller = listing.seller.discord
   local buyer = (did == seller) and tostring(listing.source and listing.source.last_contact or '') or did
 
+  
+  
   return false, 'Use inboxSendTo for seller replies'
 end
 
@@ -1016,6 +1091,7 @@ local function inboxSendTo(src, listingId, targetDiscord, message)
     buyer = did
   end
 
+  
   if did ~= seller and did ~= buyer then
     return false, 'Not allowed'
   end
@@ -1038,11 +1114,15 @@ local function inboxSendTo(src, listingId, targetDiscord, message)
     created_at = os.date('!%Y-%m-%d %H:%M:%S')
   }
 
+  
   sendPushToDiscord(seller, 'messageNew', payload)
   sendPushToDiscord(buyer, 'messageNew', payload)
 
   return true, true
 end
+
+
+
 
 RegisterNetEvent('az_marketplace:sv:request', function(reqId, action, data)
   local src = source
@@ -1063,6 +1143,8 @@ RegisterNetEvent('az_marketplace:sv:request', function(reqId, action, data)
     end
   end
 
+  
+  
   local watchdogMs = tonumber(Config and Config.ServerRpcTimeoutMs) or 8000
   SetTimeout(watchdogMs, function()
     if replied then return end
@@ -1077,6 +1159,7 @@ RegisterNetEvent('az_marketplace:sv:request', function(reqId, action, data)
     dprint('RPC recv', reqId, action, 'src='..tostring(src))
   end
 
+  
   if action == 'createListing' then action = 'listings:create' end
   if action == 'getListing' then action = 'listings:get' end
   if action == 'listListings' then action = 'listings:list' end

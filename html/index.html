@@ -9,17 +9,17 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <style>
-    /* ==========================================================
-       FLOATING WINDOW NUI (drag + resize + themes)
-       - Transparent NUI background
-       - Only the window is interactive (click-through elsewhere)
-       - Drag by topbar (excluding inputs/buttons)
-       - Resize via bottom-right handle
-       - Settings: dark/light + glass opacity + reset window
-       ========================================================== */
+    
+
+
+
+
+
+
+
 
     :root{
-      /* THEME (LIGHT default) */
+      
       --bg:#f0f2f5;
       --panel:#ffffff;
       --panel2:#f7f8fa;
@@ -32,7 +32,7 @@
       --radius2:12px;
       --trans:180ms cubic-bezier(.2,.9,.25,1);
 
-      /* WINDOW "GLASS" */
+      
       --winBg: 255, 255, 255;
       --winA: .96;
       --winBorder: rgba(15,23,42,.12);
@@ -64,12 +64,12 @@
       margin:0;
       font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
       background:transparent;
-      overflow:hidden; /* prevent scroll on the NUI surface */
+      overflow:hidden; 
     }
 
     .hidden{display:none !important}
 
-    /* Make entire NUI click-through EXCEPT the window */
+    
     body{ pointer-events:none; }
     #app{ pointer-events:none; }
 
@@ -96,7 +96,7 @@
       border-radius:18px;
       border:1px solid var(--winBorder);
 
-      /* ✅ FIX: use correct CSS color syntax with --winBg */
+      
       background: rgb(var(--winBg) / var(--winA));
 
       overflow:hidden;
@@ -105,7 +105,7 @@
     .window.dragging{ user-select:none; }
     .window.dragging .topbar{ cursor:grabbing; }
 
-    /* Custom resize handle */
+    
     .resizer{
       position:absolute;
       right:0;
@@ -140,7 +140,7 @@
       opacity:.55;
     }
 
-    /* ===================== IN-WINDOW TOAST NOTIFICATIONS ===================== */
+    
     .toasts{
       position:absolute;
       top:74px;
@@ -187,11 +187,11 @@
     .toast .x:hover{ filter:brightness(.95); }
 
     .toast[data-type="success"] .ico{ color:#16a34a; }
-    .toast[data-type="error"] .ico{ color:#ef4444; }
-    .toast[data-type="warn"] .ico{ color:#f59e0b; }
+    .toast[data-type="error"] .ico{ color:#3970e6; }
+    .toast[data-type="warn"] .ico{ color:#5bc0ff; }
     .toast[data-type="info"] .ico{ color:var(--blue); }
 
-    /* ===================== ACTION MENU / CONFIRM MODAL ===================== */
+    
     .modal-list{ display:flex; flex-direction:column; gap:8px; }
     .actionbtn{
       width:100%;
@@ -206,11 +206,11 @@
       color:var(--text);
     }
     .actionbtn:hover{ filter:brightness(.98); }
-    .actionbtn.danger{ border-color:rgba(239,68,68,.35); background:rgba(239,68,68,.08); }
-    .actionbtn.danger i{ color:#ef4444; }
+    .actionbtn.danger{ border-color:rgba(57,112,230,.35); background:rgba(57,112,230,.08); }
+    .actionbtn.danger i{ color:#3970e6; }
     .confirm-text{ color:var(--muted); font-size:13px; line-height:1.35; margin-top:6px; white-space:pre-wrap; }
 
-    /* ===================== ORIGINAL UI STYLES (kept) ===================== */
+    
 
     .topbar{
       height:64px;
@@ -221,9 +221,9 @@
       padding:0 16px;
       gap:14px;
 
-      cursor:grab; /* drag handle */
+      cursor:grab; 
     }
-    /* allow normal cursor on interactive elements in topbar */
+    
     .topbar button, .topbar input { cursor:auto; }
     .topbar .search { cursor:auto; }
 
@@ -506,7 +506,7 @@
       border:1px solid var(--line);
     }
 
-    /* Inbox: UPDATED for container sizing (no 100vh math) */
+    
     .inbox{
       padding:16px;
       display:grid;
@@ -538,8 +538,8 @@
       flex-direction:column;
       gap:10px;
       overflow:auto;
-      flex:1;              /* fills available space */
-      max-height:none;     /* no vh calc */
+      flex:1;              
+      max-height:none;     
       min-height:0;
     }
     .bubble{max-width:72%;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--panel2);color:var(--text);line-height:1.3}
@@ -550,7 +550,7 @@
     .compose input{flex:1;height:40px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);padding:0 14px;outline:0;color:var(--text)}
     .compose button{height:40px;border-radius:999px}
 
-    /* Modals: contained INSIDE window (not fullscreen) */
+    
     .backdrop{
       position:absolute;
       inset:0;
@@ -600,7 +600,7 @@
 
     .actions{display:flex;justify-content:flex-end;margin-top:12px;gap:10px;flex-wrap:wrap}
 
-    /* Settings row */
+    
     .range{
       width:100%;
       accent-color: var(--blue);
@@ -612,7 +612,7 @@
       line-height:1.35;
     }
 
-    /* Responsive */
+    
     @media (max-width: 1000px){
       :root{ --minW: 520px; --minH: 520px; }
       .sidebar{width:280px}
@@ -625,11 +625,11 @@
 <body>
   <div id="app" class="app hidden">
     <div id="window" class="window">
-      <!-- RESIZE HANDLE -->
+      
       <div id="winResizer" class="resizer" title="Resize"></div>
 
       <div id="windowInner" style="height:100%;display:flex;flex-direction:column;min-height:0">
-        <!-- Toast notifications (in-window) -->
+        
         <div id="toastHost" class="toasts"></div>
 
         <div class="topbar" id="dragHandle">
@@ -713,7 +713,7 @@
           </main>
         </div>
 
-        <!-- SETTINGS MODAL (inside window) -->
+        
         <div id="settingsBackdrop" class="backdrop hidden"></div>
         <div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true">
           <div class="modal-head">
@@ -749,7 +749,7 @@
           </div>
         </div>
 
-        <!-- Action Menu Modal -->
+        
         <div id="menuBackdrop" class="backdrop hidden"></div>
         <div id="menuModal" class="modal hidden" role="dialog" aria-modal="true">
           <div class="modal-head">
@@ -761,7 +761,7 @@
           </div>
         </div>
 
-        <!-- Confirm Modal -->
+        
         <div id="confirmBackdrop" class="backdrop hidden"></div>
         <div id="confirmModal" class="modal hidden" role="dialog" aria-modal="true">
           <div class="modal-head">
@@ -777,7 +777,7 @@
           </div>
         </div>
 
-        <!-- Create Listing Modal (inside window) -->
+        
         <div id="modalBackdrop" class="backdrop hidden"></div>
         <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
           <div class="modal-head">
@@ -837,12 +837,12 @@
           </div>
         </div>
 
-      </div><!-- /windowInner -->
-    </div><!-- /window -->
-  </div><!-- /app -->
+      </div>
+    </div>
+  </div>
 
   <script>
-    /* az_marketplace NUI - vanilla JS */
+
 
     const RES = (typeof GetParentResourceName === 'function') ? GetParentResourceName() : 'az_marketplace';
 
@@ -864,7 +864,7 @@
         defaultLocationLabel: 'Los Santos',
         adminCanModerate: true,
 
-        // ✅ chat live refresh (AJAX polling fallback, does NOT wipe typing)
+
         chatPollMs: 1500
       },
       view: 'browse',
@@ -878,21 +878,21 @@
         messages: [],
         activeMeta: null,
 
-        // ✅ NEW: per-thread draft text (prevents wipe)
+
         drafts: {},
 
-        // ✅ NEW: poll timer
+
         poll: { timer: null, view: null, lastSig: '' }
       },
       create: { open: false, type: 'item', photos: [], sources: { vehicles: [], houses: [], rentals: [] } },
       detailIndex: 0,
     };
 
-    /* ===================== WINDOW PREFS (drag/resize/theme) ===================== */
+
 
     const PREF_KEY = 'az_marketplace_ui_prefs_v1';
 
-    /* ===================== TOAST NOTIFICATIONS (no popouts) ===================== */
+
     function escapeHtml(str){
       return String(str||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
@@ -941,7 +941,7 @@
       err: (m,t='Marketplace') => toast('error', t, m, 5200),
     };
 
-    /* ===================== IN-APP MENU + CONFIRM ===================== */
+
     function openMenu(show){
       $('#menuBackdrop')?.classList.toggle('hidden', !show);
       $('#menuModal')?.classList.toggle('hidden', !show);
@@ -1020,7 +1020,7 @@
 
     function applyOpacity(pct){
       const v = clamp(Number(pct||96), 70, 100);
-      // maps 70..100 => 0.70..1.00
+
       document.documentElement.style.setProperty('--winA', (v/100).toFixed(2));
       $('#opacityRange').value = String(v);
     }
@@ -1054,7 +1054,7 @@
       win.style.top = '60px';
       win.style.width = `min(1240px, 95vw)`;
       win.style.height = `min(760px, 90vh)`;
-      // force computed px apply after a tick
+
       setTimeout(() => {
         const r = win.getBoundingClientRect();
         applyWindowRect({ x: r.left, y: r.top, w: r.width, h: r.height });
@@ -1083,7 +1083,7 @@
       $('#settingsModal').classList.toggle('hidden', !show);
     }
 
-    /* Drag */
+
     function initDrag(){
       const win = $('#window');
       const handle = $('#dragHandle');
@@ -1147,7 +1147,7 @@
       window.addEventListener('pointerup', onUp);
     }
 
-    /* Resize */
+
     function initResize(){
       const win = $('#window');
       const grip = $('#winResizer');
@@ -1187,7 +1187,7 @@
         let w = startW + dx;
         let h = startH + dy;
 
-        // clamp to viewport
+
         const r = win.getBoundingClientRect();
         const maxW = vw - r.left - 8;
         const maxH = vh - r.top  - 8;
@@ -1211,14 +1211,14 @@
       window.addEventListener('pointerup', onUp);
     }
 
-    /* Keep window in-bounds on resolution changes */
+
     window.addEventListener('resize', () => {
       const prefs = loadPrefs();
       applyWindowRect(prefs.rect || {});
       persistWindowRect();
     });
 
-    /* ===================== ORIGINAL APP CODE (kept) ===================== */
+
 
     function fmtMoney(n){
       n = Number(n||0);
@@ -1311,7 +1311,7 @@
 
       $$('.navitem').forEach(b => b.classList.toggle('active', b.dataset.route === view));
 
-      // start/stop chat polling
+
       if(view === 'inbox' || view === 'buying') startInboxPoll(view);
       else stopInboxPoll();
 
@@ -1823,12 +1823,12 @@
       });
     }
 
-    /* ==========================================================
-       ✅ FIXED LIVE CHAT (NO MORE WIPING INPUT)
-       - We DO NOT rebuild the compose/input when messages update
-       - Threads/messages update in-place
-       - Draft saved per-thread
-       ========================================================== */
+
+
+
+
+
+
 
     function inboxWrap(view){
       return (view === 'buying') ? $('#viewBuying') : $('#viewInbox');
@@ -1842,9 +1842,9 @@
       const wrap = inboxWrap(view);
       if(!wrap) return null;
 
-      // Already built? Keep it. (This is what stops wiping your typing.)
+
       if(wrap.querySelector('.inbox') && wrap.querySelector('#msgInput') && wrap.querySelector('#threadList')){
-        // ensure handlers still set
+
         const btnSend = wrap.querySelector('#btnSend');
         const msgInput = wrap.querySelector('#msgInput');
         if(btnSend && !btnSend.dataset.bound){
@@ -1920,7 +1920,7 @@
 
       let threads = Array.isArray(state.inbox.threads) ? [...state.inbox.threads] : [];
 
-      // show active even if not in list yet (draft convo)
+
       if(state.inbox.active){
         const ak = inboxKey(state.inbox.active.listing_id, state.inbox.active.other_discord);
         const exists = threads.some(t => inboxKey(t.listing_id, t.other_discord) === ak);
@@ -1990,10 +1990,10 @@
       const k = inboxKey(state.inbox.active.listing_id, state.inbox.active.other_discord);
       const draft = state.inbox.drafts[k] || '';
 
-      // only restore if user isn't actively typing different text
-      // (prevents annoying overwrites)
+
+
       if(document.activeElement === inp && inp.value !== draft){
-        // don't overwrite if user is actively typing
+
         return;
       }
       if(inp.value !== draft) inp.value = draft;
@@ -2030,7 +2030,7 @@
       const headEl = wrap.querySelector('#chatHead');
       const inp = wrap.querySelector('#msgInput');
 
-      // save previous draft (whatever is in the input right now)
+
       if(state.inbox.active && inp){
         const prevK = inboxKey(state.inbox.active.listing_id, state.inbox.active.other_discord);
         state.inbox.drafts[prevK] = inp.value || '';
@@ -2040,11 +2040,11 @@
 
       setActiveThreadStyles(view);
 
-      // set title guess immediately
+
       const titleGuess = state.listing?.title || state.inbox.activeMeta?.listing_title || (`Listing #${lid}`);
       if(headEl) headEl.textContent = `${titleGuess} — Chat`;
 
-      // restore draft for this thread (do not overwrite active typing)
+
       restoreDraftToInput(view);
 
       const r = await nui('inbox:thread', { listing_id: lid, other_discord: String(other_discord||'') });
@@ -2064,7 +2064,7 @@
       state.inbox.messages = r.data.messages || [];
       renderMessages(view);
 
-      // keep draft intact after re-rendering messages
+
       restoreDraftToInput(view);
 
       if(opts.refreshListOnOpen !== false){
@@ -2087,10 +2087,10 @@
 
       const k = inboxKey(state.inbox.active.listing_id, state.inbox.active.other_discord);
 
-      // keep a copy in case send fails
+
       const keep = text;
 
-      // optimistic draft clear ONLY if send succeeds; for now, keep it in drafts
+
       state.inbox.drafts[k] = inp.value || '';
 
       const r = await nui('inbox:send', {
@@ -2101,16 +2101,16 @@
 
       if(!r.ok){
         notify.err(r.data?.error || 'Failed to send');
-        // restore input
+
         if(inp) inp.value = state.inbox.drafts[k] || keep;
         return;
       }
 
-      // sent: clear draft + input
+
       state.inbox.drafts[k] = '';
       if(inp) inp.value = '';
 
-      // refresh messages + thread previews
+
       await openThread(state.inbox.active.listing_id, state.inbox.active.other_discord, view, { silent:true, refreshListOnOpen:false });
       await refreshInbox(view, { openActive:false });
     }
@@ -2134,7 +2134,7 @@
         if(state.view !== 'inbox' && state.view !== 'buying') return;
         if(state.view !== view) return;
 
-        // update thread list + active messages (no wiping input)
+
         await refreshInbox(view, { openActive:false });
 
         if(state.inbox.active){
@@ -2185,7 +2185,7 @@
       await refreshInbox('inbox', { openActive:true });
     }
 
-    /* ===================== Create listing modal ===================== */
+
 
     function openModal(show){
       state.create.open = !!show;
@@ -2245,7 +2245,7 @@
         return;
       }
 
-      // Keep payload safe (prevents huge base64)
+
       const MAX_BYTES = 200 * 1024;
       body.images = (body.images || []).filter(x => typeof x === 'string' && dataUrlBytes(x) <= MAX_BYTES);
 
@@ -2261,16 +2261,16 @@
     }
 
     function bindUI(){
-      // top actions
+
       $('#btnClose').onclick = () => closeNui();
       $('#btnHome').onclick = () => setView('browse');
       $('#btnInbox').onclick = () => setView('inbox');
       $('#btnSell').onclick = () => setView('selling');
 
-      // nav
+
       $$('.navitem').forEach(b => b.onclick = () => setView(b.dataset.route));
 
-      // search/sort/radius
+
       $('#searchInput').oninput = (e) => {
         state.filters.search = e.target.value || '';
         if(state.view === 'browse') refreshBrowse();
@@ -2289,7 +2289,7 @@
         if(state.view === 'browse') refreshBrowse();
       };
 
-      // create listing
+
       $('#btnCreate').onclick = () => {
         openModal(true);
         loadSources().then(() => renderCreateSource()).catch(() => {});
@@ -2297,7 +2297,7 @@
       $('#btnModalClose').onclick = () => openModal(false);
       $('#modalBackdrop').onclick = () => openModal(false);
 
-      // screenshot photos (with compression)
+
       $('#btnAddPhoto').onclick = async () => {
         if(!state.config.screenshotsEnabled){
           alert('Screenshot capture is disabled on this server.');
@@ -2317,7 +2317,7 @@
         let img = r.data?.image;
         if(!img) return;
 
-        const MAX_BYTES = 200 * 1024; // 200KB target per photo
+        const MAX_BYTES = 200 * 1024;
         try {
           img = await compressDataUrl(img, 900, 900, 0.65);
           if (dataUrlBytes(img) > MAX_BYTES) {
@@ -2336,7 +2336,7 @@
 
       $('#btnCreateSubmit').onclick = () => createListing();
 
-      // settings open/close
+
       const openSettingsUI = () => openSettings(true);
       $('#btnSidebarSettings').onclick = openSettingsUI;
       $('#btnSettingsTop').onclick = openSettingsUI;
@@ -2344,7 +2344,7 @@
       $('#btnSettingsClose').onclick = () => openSettings(false);
       $('#settingsBackdrop').onclick = () => openSettings(false);
 
-      // settings: theme / opacity
+
       $('#themeSelect').onchange = (e) => {
         const theme = e.target.value === 'dark' ? 'dark' : 'light';
         applyTheme(theme);
@@ -2416,7 +2416,7 @@
       renderTypeTabs();
     }
 
-    // Receive messages from game
+
     window.addEventListener('message', (event) => {
       const msg = event.data || {};
 
@@ -2448,7 +2448,7 @@
           }
         }
 
-        // ✅ FIX: this no longer nukes your input because inbox updates are in-place
+
         if(msg.event === 'messageNew'){
           if(state.view === 'inbox' || state.view === 'buying'){
             refreshInbox(state.view, { openActive:true });
@@ -2457,11 +2457,11 @@
       }
     });
 
-    // Init
+
     bindUI();
     initPrefs();
     initDrag();
     initResize();
-  </script>
+</script>
 </body>
 </html>

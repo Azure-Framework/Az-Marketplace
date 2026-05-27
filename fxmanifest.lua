@@ -1,8 +1,8 @@
 fx_version 'cerulean'
 game 'gta5'
 
-name 'Az-Marketplace'
-author 'Azure'
+name 'az_marketplace'
+author 'Azure Framework'
 description 'Marketplace-style NUI for player listings + PM chat (Az-Framework)'
 version '1.0.0'
 
@@ -31,5 +31,5 @@ files {
 
 dependency 'oxmysql'
 dependency 'Az-Framework'
--- Optional (used for screenshots in listing photos)
+
 dependency 'screenshot-basic'

@@ -1,5 +1,5 @@
--- az_marketplace INSTALL (updated)
--- If you already have tables, the resource will auto-migrate older schemas on start.
+
+
 
 CREATE TABLE IF NOT EXISTS az_marketplace_listings (
   id INT AUTO_INCREMENT PRIMARY KEY,
