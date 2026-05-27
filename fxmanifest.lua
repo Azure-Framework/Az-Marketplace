@@ -31,5 +31,3 @@ files {
 
 dependency 'oxmysql'
 dependency 'Az-Framework'
-
-dependency 'screenshot-basic'

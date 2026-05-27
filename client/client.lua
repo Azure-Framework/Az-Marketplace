@@ -116,7 +116,7 @@ local function captureScreenshot()
     return nil, 'Screenshot capture disabled'
   end
 
-  if not exports['screenshot-basic'] then
+  if GetResourceState('screenshot-basic') ~= 'started' then
     return nil, 'screenshot-basic missing'
   end
 
